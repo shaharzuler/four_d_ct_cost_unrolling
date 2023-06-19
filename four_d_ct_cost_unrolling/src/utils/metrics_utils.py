@@ -1,0 +1,47 @@
+
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+
+    def __init__(self, i=1, print_precision=3, names=None):
+        self.meters = i
+        self.precision = print_precision
+        self.reset(self.meters)
+        self.names = names
+        if names is not None:
+            assert self.meters == len(self.names)
+        else:
+            self.names = [''] * self.meters
+
+    def reset(self, i):
+        self.val = [0] * i
+        self.avg = [0] * i
+        self.sum = [0] * i
+        self.count = [0] * i
+
+    def update(self, val, n=1):
+        if not isinstance(val, list):
+            val = [val]
+        if not isinstance(n, list):
+            n = [n] * self.meters
+        assert (len(val) == self.meters and len(n) == self.meters)
+        for i in range(self.meters):
+            self.count[i] += n[i]
+        for i, v in enumerate(val):
+            self.val[i] = v
+            self.sum[i] += v * n[i]
+            self.avg[i] = self.sum[i] / self.count[i]
+
+    def get_avg_meter_name(self, name:str) -> float:
+        if self.names is not None:
+            try:
+                index = self.names.index(name)
+                return self.avg[index]
+            except AttributeError:
+                return None
+
+    def __repr__(self):
+        val = ' '.join(['{} {:.{}f}'.format(n, v, self.precision) for n, v in
+                        zip(self.names, self.val)])
+        avg = ' '.join(['{} {:.{}f}'.format(n, a, self.precision) for n, a in
+                        zip(self.names, self.avg)])
+        return '{} ({})'.format(val, avg)
