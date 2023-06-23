@@ -38,23 +38,23 @@ class UnFlowLoss(nn.modules.Module):
             loss += [self.args.w_ternary *
                      TernaryLoss(img1_recons, img1_scaled)]
 
-        if self.mask_loss_w_seg: #maybe this will be removed from everywhere bcs always false TODO
-            for n in range(len(loss)):
-                _,_,h,w,d = loss[n].shape
-                loss[n] = self.seg_recons[:,:,:h,:w,:d]*loss[n]
+        # if self.mask_loss_w_seg: #maybe this will be removed from everywhere bcs always false TODO
+        #     for n in range(len(loss)):
+        #         _,_,h,w,d = loss[n].shape
+        #         loss[n] = self.seg_recons[:,:,:h,:w,:d]*loss[n]
         return sum([l.mean() for l in loss])
 
     def loss_smooth(self, flow, img1_scaled, vox_dim):
         func_smooth = smooth_grad_1st
         loss = []
-        if self.mask_loss_w_seg:
-            loss += [func_smooth(flow, img1_scaled, vox_dim, self.args.alpha, seg_recons=self.seg_recons)]
-        else:
-            loss += [func_smooth(flow, img1_scaled, vox_dim, self.args.alpha)]
+        # if self.mask_loss_w_seg:
+        #     loss += [func_smooth(flow, img1_scaled, vox_dim, self.args.alpha, seg_recons=self.seg_recons)]
+        # else:
+        loss += [func_smooth(flow, img1_scaled, vox_dim, self.args.alpha)]
         return sum([l.mean() for l in loss])
 
     def forward(self, output, img1, img2, aux, vox_dim):
-        log("Computing loss")
+        # log("Computing loss")
         vox_dim = vox_dim.squeeze(0)
 
         pyramid_flows = output
@@ -64,33 +64,27 @@ class UnFlowLoss(nn.modules.Module):
 
         s = 1.
         for i, flow in enumerate(pyramid_flows):
-            log(f'Aggregating loss of pyramid level {i+1}')
-
+            # log(f'Aggregating loss of pyramid level {i+1}')
             N, C, H, W, D = flow.size()
-
             img1_scaled = F.interpolate(img1, (H, W, D), mode='area')
             # Only needed if we aggregate flow21 and dowing backward computation
             img2_scaled = F.interpolate(img2, (H, W, D), mode='area')
-
             flow12 = flow[:, :3]
-
             img1_recons = flow_warp(img2_scaled, flow12)
 
             if i == 0:
                 s = min(H, W, D)
 
-            self.mask_loss_w_seg = False ######################
-            if self.mask_loss_w_seg: # warp seg, scale seg, multiply seg
-                if "bin_seg_mask" in aux[0].keys():
-                    seg_scaled = F.interpolate(aux[0]["bin_seg_mask"].type(torch.uint8), (H, W, D), mode='nearest').to(flow12.device)
-                    self.seg_recons = flow_warp(seg_scaled.type(flow12.dtype), flow12).type(torch.int).type(flow12.dtype)
+            # self.mask_loss_w_seg = False ######################
+            # if self.mask_loss_w_seg: # warp seg, scale seg, multiply seg
+            #     if "bin_seg_mask" in aux[0].keys():
+            #         seg_scaled = F.interpolate(aux[0]["bin_seg_mask"].type(torch.uint8), (H, W, D), mode='nearest').to(flow12.device)
+            #         self.seg_recons = flow_warp(seg_scaled.type(flow12.dtype), flow12).type(torch.int).type(flow12.dtype)
 
 
-            loss_smooth = self.loss_smooth(flow=flow12 / s, img1_scaled=img1_recons, vox_dim=vox_dim)
+            loss_smooth = self.loss_smooth(flow=flow12 / s, img1_scaled=img1_recons, vox_dim=vox_dim) #TODO what is the s for?? TODO remove all remaining for segmentation there
             loss_photometric = self.loss_photometric(img1_scaled, img1_recons)
-
-            log(f'Computed losses for level {i+1}: loss_warp={loss_photometric}, loss_smoth={loss_smooth}')
-
+            # log(f'Computed losses for level {i+1}: loss_warp={loss_photometric}, loss_smoth={loss_smooth}')
             pyramid_smooth_losses.append(loss_smooth)
             pyramid_warp_losses.append(loss_photometric)
 

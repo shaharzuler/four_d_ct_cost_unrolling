@@ -9,7 +9,7 @@
 # cycler==0.10.0
 # decorator==4.4.2
 # Deprecated==1.2.12
-# easydict==1.9
+easydict==1.9
 # evalutils==0.2.4
 flow-vis==0.1
 # google-auth==1.32.1

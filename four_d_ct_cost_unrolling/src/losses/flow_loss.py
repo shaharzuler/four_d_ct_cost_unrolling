@@ -111,7 +111,7 @@ def create_window_3D(window_size, channel):
 
 
 def SSIM(x, y, md=1):
-    log(f'Running SSIM with x={x}, y={y}')
+    # log(f'Running SSIM with x={x}, y={y}')
     patch_size = 2 * md + 1
     C1 = 0.01 ** 2
     C2 = 0.03 ** 2

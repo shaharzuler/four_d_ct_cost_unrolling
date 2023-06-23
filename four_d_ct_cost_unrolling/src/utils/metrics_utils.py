@@ -4,7 +4,7 @@ class AverageMeter(object):
 
     def __init__(self, i=1, print_precision=3, names=None):
         self.meters = i
-        self.precision = print_precision
+        self.print_precision = print_precision
         self.reset(self.meters)
         self.names = names
         if names is not None:
@@ -40,8 +40,8 @@ class AverageMeter(object):
                 return None
 
     def __repr__(self):
-        val = ' '.join(['{} {:.{}f}'.format(n, v, self.precision) for n, v in
+        val = ' '.join(['{} {:.{}f}'.format(n, v, self.print_precision) for n, v in
                         zip(self.names, self.val)])
-        avg = ' '.join(['{} {:.{}f}'.format(n, a, self.precision) for n, a in
+        avg = ' '.join(['{} {:.{}f}'.format(n, a, self.print_precision) for n, a in
                         zip(self.names, self.avg)])
         return '{} ({})'.format(val, avg)

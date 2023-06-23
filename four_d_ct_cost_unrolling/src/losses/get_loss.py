@@ -1,14 +1,15 @@
 from .un_flow_loss import UnFlowLoss
 from .l2_loss import L2Loss
 from .constraints_loss import ConstraintsLoss
+import torch.nn as nn
 
-def get_loss(loss:str, args=None):
-    if loss=="L1":
+def get_loss(args:dict) -> nn.modules.Module:
+    if args.loss=="unflow":
         losses = {"loss_module" : UnFlowLoss(args)}
-    elif loss=="L2":
+    elif args.loss=="L2":
         losses =  {"loss_module" : L2Loss(args)}
 
-    if '2d_constraints' in loss:
+    if '2d_constraints' in args.loss:
         losses.update({"constraints_module" : ConstraintsLoss(args)})
 
     return losses

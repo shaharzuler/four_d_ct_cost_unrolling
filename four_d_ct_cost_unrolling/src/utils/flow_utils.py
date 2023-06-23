@@ -23,12 +23,12 @@ def norm_grid(v_grid):
     return v_grid_norm.permute(0, 2, 3, 4, 1)
 
 def flow_warp(img2, flow12, pad='border', mode='bilinear'):
+    assert (img2.shape[-3:] == flow12.shape[-3:])
     B, _, H, W, D = flow12.size()
     flow12 = torch.flip(flow12, [1])
     base_grid = mesh_grid(B, H, W, D).type_as(img2)  # B2HW
 
     v_grid = norm_grid(base_grid + flow12)  # BHW2
-    im1_recons = nn.functional.grid_sample(
-        img2, v_grid, mode=mode, padding_mode=pad, align_corners=True)
+    im1_recons = nn.functional.grid_sample(img2, v_grid, mode=mode, padding_mode=pad, align_corners=True)
 
     return im1_recons

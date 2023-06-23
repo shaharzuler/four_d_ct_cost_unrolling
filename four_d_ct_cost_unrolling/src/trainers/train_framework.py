@@ -13,8 +13,8 @@ from ..utils.metrics_utils import AverageMeter
 
 from torch.cuda.amp import autocast 
 class TrainFramework(BaseTrainer):
-    def __init__(self, train_loader, valid_loader, model, loss_func, args):
-        super(TrainFramework, self).__init__(train_loader, valid_loader, model, loss_func, args)
+    def __init__(self, train_loader, model, loss_func, args):
+        super(TrainFramework, self).__init__(train_loader, model, loss_func, args)
 
     def _run_one_epoch(self):
         am_batch_time, am_data_time, key_meter_names, key_meters, end = self._init_epoch()
@@ -29,25 +29,15 @@ class TrainFramework(BaseTrainer):
             meters = [loss, l_ph, l_sm, l_mwl, l_cyc, l_kpts, flow_mean]
             vals = [m.item() if torch.is_tensor(m) else m for m in meters]
             key_meters.update(vals, prepared_data["img1"].size(0))
-            self.optimize(loss)
-            self.update_logs(am_batch_time, am_data_time, key_meter_names, key_meters, i_step)
+            self._optimize(loss)
+            self.update_to_tensorboard(am_batch_time, am_data_time, key_meter_names, key_meters, i_step)
             self.i_iter += 1
         self._validate()
 
-    def _compute_loss_terms(self, data, img1, img2, vox_dim, flows, aux, res_dict=None):
-        if "2d_constraints" in data.keys():
-            aux[0]["bin_seg_mask"] = torch.unsqueeze(torch.max(torch.where(data["2d_constraints"]!=0,1,0),axis=1).values, 0) # does accidently include also where onstraints are 0. FIXME TOOD
-
+    def _compute_loss_terms(self, img1, img2, vox_dim, flows, aux, _, __):
         loss, l_ph, l_sm, flow_mean = self.loss_modules['loss_module'](flows, img1, img2, aux, vox_dim)
-        for loss_, module_ in self.loss_modules.items():
-                
-            if "constraints" in loss_:
-                l_constraints = module_(flows, res_dict["2d_constraints"])
-                loss += l_constraints
-            else:
-                l_constraints = 0.0
 
-        return loss, l_ph, l_sm, flow_mean, l_constraints
+        return loss, (l_ph, l_sm, flow_mean)
 
     def _post_process_model_output(self, res_dict):
         flows12, flows21 = res_dict['flows_fw'][0], res_dict['flows_bk'][0]
@@ -57,27 +47,12 @@ class TrainFramework(BaseTrainer):
         aux = (aux12, aux21)
         return flows, aux
 
-    def update_logs(self, am_batch_time, am_data_time, key_meter_names, key_meters, i_step, visible_masks, ncc_loss_viz=None):
+    def update_to_tensorboard(self, key_meter_names, key_meters):#, visible_masks, ncc_loss_viz=None):
         if self.rank ==0 and self.i_iter % self.args.record_freq == 0:
             for v, name in zip(key_meters.val, key_meter_names):
                 self.summary_writer.add_scalar('Train_' + name, v, self.i_iter)
 
-        if self.rank == 0 and self.i_iter % self.args.print_freq == 0:
-            istr = '{}:{:04d}/{:04d}'.format(
-                    self.i_epoch, i_step, self.args.epoch_size) + \
-                       ' Time {} Data {}'.format(am_batch_time, am_data_time) + \
-                       ' Info {}'.format(key_meters)
-            self._log.info(istr)
-
-        if self.rank ==0 and self.i_iter % self.args.record_freq == 0:
-            N, _, H, W, D = visible_masks[0][0].shape
-            mask_vis = disp_training_fig(visible_masks[0][0].detach().cpu(), visible_masks[0][1].detach().cpu(), torch.zeros([N, 3, H, W, D]))
-            mask_vis[0,:,0,0]=0.
-            mask_vis[0,:,1,1]=255.
-            self.summary_writer.add_images('Mask_{}'.format(i_step), mask_vis[:,:,H//3:,:].astype(np.uint8), self.i_epoch, dataformats='NCHW')
-
-
-    def optimize(self, loss):
+    def _optimize(self, loss):
         loss = loss.mean()
         self.optimizer.zero_grad()
         self.scaler.scale(loss).backward()
@@ -88,36 +63,32 @@ class TrainFramework(BaseTrainer):
     def _init_epoch(self):
         avg_meter_batch_time = AverageMeter()
         avg_meter_data_time = AverageMeter()
-
-        key_meter_names = ['Loss', 'l_ph', 'l_sm', "l_admm", "l_mwl", "flow_mean", "l_constraints"]
-        key_meters = AverageMeter(i=len(key_meter_names), print_precision=4, names=key_meter_names)
-
         self.model.train()
+
+        key_meter_names, key_meters = self._init_key_meters()
         end = time.time()
         return avg_meter_batch_time, avg_meter_data_time, key_meter_names, key_meters, end
 
+    def _init_key_meters(self):
+        key_meter_names = ['Loss', 'l_ph', 'l_sm', "flow_mean"]
+        key_meters = AverageMeter(i=len(key_meter_names), print_precision=4, names=key_meter_names)
+        return key_meter_names,key_meters
+
     def _prepare_data(self, data):
-        if isinstance(data, dict):
-            img1, img2 = data['imgs'] # TODO oroginigally im1 is a tuple of image tensor and voxels size
-        else: # TODO REMOVE THIS condition?
-            img1, img2, case = data # TODO REMOVE THIS condition?
-        vox_dim = torch.cat([v[:,None] for v in img1[1]],dim=1).to(self.rank)
-        img1, img2 = [im[0].to(self.rank) for im in [img1, img2]]
-        img1, img2 = [im.unsqueeze(1).float() for im in [img1, img2]]
-        data = { # TODO check if this is all neccessary. anyway img1.shape==torch.Size([1, 1, 192, 192, 192]) with vals between 0 and 1!. do we need vox_dim?
+        img1, img2 = [im.unsqueeze(0).float().to(self.rank) for im in [data["template_image"], data["unlabeled_image"]]]
+        vox_dim = torch.tensor([[1,1,1.]], dtype=torch.float64).to(self.rank)
+        
+        data = { 
             "img1": img1,
             "img2": img2,
             "vox_dim": vox_dim,
-            "img1_original": img1,
-            "img2_original": img2,
-            "img2_rolled": img2
         }
 
         return data 
             
     @torch.no_grad()
     def _validate(self, validation_data:dict):
-        self._log.info(f'Running validation on rank {self.rank}..')
+        # self._log.info(f'Running validation on rank {self.rank}..')
         if hasattr(self.args,'dump_disp') and self.args.dump_disp:
             return self._dumpt_disp_fields()
         else:

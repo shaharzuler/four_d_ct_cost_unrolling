@@ -6,6 +6,7 @@ from ..utils.flow_utils import flow_warp
 # from utils.misc import log
 from .admm.admm import ADMMSolverBlock, MaskGenerator
 import math
+import numpy as np
 
 class PWC3D(nn.Module):
     def __init__(self, args, upsample=True, search_range=4): 
@@ -31,21 +32,15 @@ class PWC3D(nn.Module):
 
         self.context_networks = ContextNetwork( (self.flow_estimators.feat_dim + 2) * (self.n_frames - 1) + 1 )
 
-        self.admm_block = ADMMSolverBlock(rho=args.admm_args.rho, lamb=args.admm_args.lamb, eta=args.admm_args.eta, 
-                grad=args.admm_args.grad, T=args.admm_args.T)
+        self.admm_block = ADMMSolverBlock(rho=args.admm_args.rho, lamb=args.admm_args.lamb, eta=args.admm_args.eta, grad=args.admm_args.grad, T=args.admm_args.T)
         self.mask_gen = MaskGenerator(alpha=args.admm_args.alpha, learn_mask=args.admm_args.learn_mask)
         self.apply_admm = args.admm_args.apply_admm
 
-        self.conv_1x1 = nn.ModuleList([conv(192, 32, kernel_size=1,
-                                            stride=1, dilation=1),
-                                       conv(128, 32, kernel_size=1,
-                                            stride=1, dilation=1),
-                                       conv(96, 32, kernel_size=1,
-                                            stride=1, dilation=1),
-                                       conv(64, 32, kernel_size=1,
-                                            stride=1, dilation=1),
-                                       conv(32, 32, kernel_size=1,
-                                            stride=1, dilation=1)])
+        self.conv_1x1 = nn.ModuleList([conv(192, 32, kernel_size=1, stride=1, dilation=1),
+                                       conv(128, 32, kernel_size=1, stride=1, dilation=1),
+                                       conv(96,  32, kernel_size=1, stride=1, dilation=1),
+                                       conv(64,  32, kernel_size=1, stride=1, dilation=1),
+                                       conv(32,  32, kernel_size=1, stride=1, dilation=1)])
 
 
     def num_parameters(self):
@@ -66,15 +61,16 @@ class PWC3D(nn.Module):
                 nn.init.constant_(layer.bias, 0)
 
     def forward(self, data, w_bk=True):
-        x1, x2, vox_dim = data["img1"], data["img2"], data["vox_dim"] # todo make this a dataclass
+        x1, x2, vox_dim = data["img1"], data["img2"], data["vox_dim"]
         self._calculate_pyramid_reduction(x1)
         x1_p = self.feature_pyramid_extractor(x1) + [x1] 
         x2_p = self.feature_pyramid_extractor(x2) + [x2]
         out_scale = 2**(self.num_levels - self.output_level - 1) 
         masks = [self.mask_gen(x_, vox_dim/out_scale, scale=1/out_scale) for x_ in [x1, x2]]
 
-        res_dict={}
-        res_dict['flows_fw'] = self._forward_2_frames(x1_p, x2_p, mask=masks[0], vox_dim=vox_dim)
+        res_dict = {
+            'flows_fw': self._forward_2_frames(x1_p, x2_p, mask=masks[0], vox_dim=vox_dim)
+        }
         if w_bk:
             res_dict['flows_bk'] = self._forward_2_frames(x2_p, x1_p, mask=masks[1], vox_dim=vox_dim)
         return res_dict
@@ -82,7 +78,7 @@ class PWC3D(nn.Module):
     def _calculate_pyramid_reduction(self, x1):
         self.num_levels_to_reduce_from_pyramid = 0
         self.feature_pyramid_extractor.num_levels_to_reduce_from_pyramid = self.num_levels_to_reduce_from_pyramid
-        max_allowed_pyramid_levels = int(math.log2(x1.shape[-1])) # Assuming dim_x == dim_y == dim_z !!! TODO ADJUST TO NEW SIZE, USE MIN INSTEAD IN SHAPE[-1]
+        max_allowed_pyramid_levels = int(math.log2(min(x1.shape[2:]))) 
         if max_allowed_pyramid_levels < self.num_levels:
             self.num_levels_to_reduce_from_pyramid = self.num_levels - max_allowed_pyramid_levels
             self.feature_pyramid_extractor.num_levels_to_reduce_from_pyramid = self.num_levels_to_reduce_from_pyramid
@@ -111,7 +107,10 @@ class PWC3D(nn.Module):
             if l == 0:
                 x2_warp = _x2
             else:
-                flow12 = F.interpolate(flow12 * 2, scale_factor=2, mode='trilinear')
+                scale_factor = np.array(_x2.shape[2:])/np.array(flow12.shape[2:])
+                for i in range(3):
+                    flow12[:,i,:,:,:] *= scale_factor[i]
+                flow12 = F.interpolate(flow12, scale_factor=tuple(scale_factor), mode='trilinear')
                 x2_warp = flow_warp(_x2, flow12)
 
             # correlation

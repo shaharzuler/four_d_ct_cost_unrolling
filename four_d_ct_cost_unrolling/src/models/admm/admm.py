@@ -86,7 +86,7 @@ class MaskGenerator(nn.Module):
             masks = [enc(grad.abs()) for enc, grad in zip(encoders, im_grads)]
         else:
             image = F.interpolate(image, scale_factor=scale, mode='trilinear')
-            im_grads = self.sobel(image,vox_dim) #[dx, dy, dz]
+            im_grads = self.sobel(image, vox_dim) #[dx, dy, dz]
 
             masks = [torch.exp(-torch.mean(torch.abs(grad), 1, keepdim=True) * self.alpha) for grad in im_grads]
 

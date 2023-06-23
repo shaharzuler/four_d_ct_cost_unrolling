@@ -6,9 +6,8 @@ import pathlib
 from torch.utils.tensorboard import SummaryWriter
 # from logger import init_logger
 import pprint
-
-import torch.distributed as dist
-from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.cuda.amp import GradScaler 
+from collections import OrderedDict
 
 
 class BaseTrainer:
@@ -16,9 +15,8 @@ class BaseTrainer:
     Base class for all trainers
     """
 
-    def __init__(self, train_set, valid_set, model, losses, args):
+    def __init__(self, train_set, model, losses, args):
         self.train_set = train_set
-        self.valid_set = valid_set
         self.args = args
         self.model = model
         self.optimizer = self._get_optimizer()
@@ -28,21 +26,19 @@ class BaseTrainer:
         self.i_iter = 0
         self.model_suffix = args.model_suffix
         self.loss_modules = losses
-        from torch.cuda.amp import GradScaler 
         self.scaler = GradScaler()
 
 
     def train(self, rank, world_size):
         self._init_rank(rank,world_size)
         
-        for epochs in self.args.levels:
-            for epoch in range(epochs):
-                break_ = self._run_one_epoch()
+        for epoch in range(self.args.epochs):
+            break_ = self._run_one_epoch()
 
-                print("Epoch {}".format(self.i_epoch))
-                self.i_epoch += 1
-                if break_:
-                    break
+            print("Epoch {}".format(self.i_epoch))
+            self.i_epoch += 1
+            if break_:
+                break
         
 
     @abstractmethod
@@ -69,7 +65,7 @@ class BaseTrainer:
             # self._log.info('{} validation samples found'.format(len(self.valid_set)))
             self.summary_writer = SummaryWriter(str(self.args.save_root))
         
-        self.train_loader, self.valid_loader = self._get_dataloaders(self.train_set, self.valid_set)
+        self.train_loader = self._get_dataloaders(self.train_set)
         self.args.epoch_size = min(self.args.epoch_size, len(self.train_loader))
 
         torch.cuda.set_device(self.rank)
@@ -77,10 +73,10 @@ class BaseTrainer:
 
         self.model = self._init_model(self.model)
 
-    def _get_dataloaders(self,train_set,valid_set):
+    def _get_dataloaders(self, train_set:torch.utils.data.Dataset) -> torch.utils.data.dataloader.DataLoader:
         train_sampler = torch.utils.data.distributed.DistributedSampler(
     	                    train_set,
-                            shuffle=True,
+                            shuffle=False,
     	                    num_replicas = self.args.n_gpu,
     	                    rank=self.rank)
         train_loader = torch.utils.data.DataLoader(
@@ -89,15 +85,9 @@ class BaseTrainer:
                             shuffle=False,
                             num_workers=0,
                             pin_memory=True,
-                            sampler=train_sampler)
-        valid_loader = torch.utils.data.DataLoader(
-                            dataset=valid_set,
-                            batch_size=1,
-                            shuffle=False,
-                            num_workers=0,
-                            pin_memory=True)                        
+                            sampler=train_sampler)            
                         
-        return train_loader, valid_loader
+        return train_loader
 
     def _get_optimizer(self):
         param_groups = [
@@ -112,11 +102,11 @@ class BaseTrainer:
     def _init_model(self, model):
         model = model.to(self.rank)
         if self.args.load:
-            if self.rank == 0:
-                self._log.info(f'Loading model from {self.args.load}')
+            # if self.rank == 0:
+            #     self._log.info(f'Loading model from {self.args.load}')
             epoch, weights = load_checkpoint(self.args.load)
 
-            from collections import OrderedDict
+            
             new_weights = OrderedDict()
             model_keys = list(model.state_dict().keys())
             weight_keys = list(weights.keys())
@@ -124,11 +114,10 @@ class BaseTrainer:
                 new_weights[a] = weights[b]
             weights = new_weights
             model.load_state_dict(weights, strict=False)
-            model.post_init()
 
         else:
-            if self.rank == 0:
-                self._log.info("=> Train from scratch")
+            # if self.rank == 0:
+            #     self._log.info("=> Train from scratch")
             model.apply(model.init_weights)
 
         return model
