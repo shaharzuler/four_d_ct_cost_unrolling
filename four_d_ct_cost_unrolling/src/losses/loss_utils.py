@@ -19,7 +19,6 @@ def gradient(data, vox_dims=torch.tensor((1, 1, 1))):
         D_dx = (data[:, :, :, 1:] - data[:, :, :, :-1])
         D_dz = (data[:, :, :, :, 1:] - data[:, :, :, :, :-1])
         for sample in range(batch_size):
-            # print(f"data:{data.shape}, voxdims:{vox_dims.shape}")
             D_dy[sample] = D_dy[sample]/vox_dims[sample, 1]
             D_dx[sample] = D_dx[sample]/vox_dims[sample, 0]
             D_dz[sample] = D_dz[sample]/vox_dims[sample, 2]

@@ -38,18 +38,11 @@ class UnFlowLoss(nn.modules.Module):
             loss += [self.args.w_ternary *
                      TernaryLoss(img1_recons, img1_scaled)]
 
-        # if self.mask_loss_w_seg: #maybe this will be removed from everywhere bcs always false TODO
-        #     for n in range(len(loss)):
-        #         _,_,h,w,d = loss[n].shape
-        #         loss[n] = self.seg_recons[:,:,:h,:w,:d]*loss[n]
         return sum([l.mean() for l in loss])
 
     def loss_smooth(self, flow, img1_scaled, vox_dim):
         func_smooth = smooth_grad_1st
         loss = []
-        # if self.mask_loss_w_seg:
-        #     loss += [func_smooth(flow, img1_scaled, vox_dim, self.args.alpha, seg_recons=self.seg_recons)]
-        # else:
         loss += [func_smooth(flow, img1_scaled, vox_dim, self.args.alpha)]
         return sum([l.mean() for l in loss])
 
@@ -74,13 +67,6 @@ class UnFlowLoss(nn.modules.Module):
 
             if i == 0:
                 s = min(H, W, D)
-
-            # self.mask_loss_w_seg = False ######################
-            # if self.mask_loss_w_seg: # warp seg, scale seg, multiply seg
-            #     if "bin_seg_mask" in aux[0].keys():
-            #         seg_scaled = F.interpolate(aux[0]["bin_seg_mask"].type(torch.uint8), (H, W, D), mode='nearest').to(flow12.device)
-            #         self.seg_recons = flow_warp(seg_scaled.type(flow12.dtype), flow12).type(torch.int).type(flow12.dtype)
-
 
             loss_smooth = self.loss_smooth(flow=flow12 / s, img1_scaled=img1_recons, vox_dim=vox_dim) #TODO what is the s for?? TODO remove all remaining for segmentation there
             loss_photometric = self.loss_photometric(img1_scaled, img1_recons)
