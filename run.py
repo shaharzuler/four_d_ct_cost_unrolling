@@ -1,5 +1,7 @@
-from four_d_ct_cost_unrolling import overfit_backbone
 from easydict import EasyDict
+
+from four_d_ct_cost_unrolling import overfit_backbone, infer_backbone
+
 
 
 args = {
@@ -8,7 +10,7 @@ args = {
         "rho": 0.1,
         "lamb": 0.1,
         "eta": 1,
-        "grad": "1st", ##
+        "grad": "1st", 
         "T": 1,
         "alpha": 50,
         "learn_mask": False,
@@ -35,17 +37,36 @@ args = {
     "n_gpu": 2,
     "batch_size": 1,
     "w_sm_scales":[20,0,0,0,0],
-    "record_freq": 1
+    "record_freq": 1,
+    "valid_type": "basic",
+    "save_iter": 50,
+    "inference_args": {
+        "inference_flow_median_filter_size": False, #7 TODO update
+        "template_timestep": 18,
+        "unlabeled_timestep": 28,
+        "output_warped_seg_maps_dir": "warped_seg_maps",
+    }
+    
 }
 
-overfit_backbone(
+# overfit_backbone(
+#     template_image_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_arr_raw.npy", 
+#     unlabeled_image_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_arr_raw.npy", 
+#     template_seg_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_voxels_mask_smooth.npy", 
+#     unlabeled_seg_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_voxels_mask_smooth.npy", 
+#     output_ckpts_path=None, 
+#     args=EasyDict(args)
+#     )
+
+
+infer_backbone(
     template_image_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_arr_raw.npy", 
     unlabeled_image_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_arr_raw.npy", 
     template_seg_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_voxels_mask_smooth.npy", 
     unlabeled_seg_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_voxels_mask_smooth.npy", 
-    output_ckpts_path=None, 
     args=EasyDict(args)
     )
+
 
 args = {
     "search_range": 4,
@@ -53,7 +74,7 @@ args = {
         "rho": 0.1,
         "lamb": 0.1,
         "eta": 1,
-        "grad": "1st", ##
+        "grad": "1st", 
         "T": 1,
         "alpha": 50,
         "learn_mask": False,
@@ -80,5 +101,8 @@ args = {
     "n_gpu": 2,
     "batch_size": 1,
     "w_sm_scales":[20,0,0,0,0],
-    "record_freq": 1
+    "record_freq": 1,
+    "valid_type": "synthetic",
+    "save_iter": 50
 }
+

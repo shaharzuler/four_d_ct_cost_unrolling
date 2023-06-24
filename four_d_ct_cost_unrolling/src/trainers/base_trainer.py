@@ -20,7 +20,7 @@ class BaseTrainer:
         self.args = args
         self.model = model
         self.optimizer = self._get_optimizer()
-        self.lowest_loss = np.inf
+        self.lowest_loss = 1E10
         self.save_root = pathlib.Path(self.args.save_root)
         self.i_epoch = self.args.after_epoch+1
         self.i_iter = 0
@@ -49,7 +49,7 @@ class BaseTrainer:
     def _validate(self):
         ...
 
-    def _init_rank(self, rank, world_size):
+    def _init_rank(self, rank, world_size, update_tensorboard=True):
         self.world_size = world_size
         self.rank = rank
 
@@ -59,13 +59,14 @@ class BaseTrainer:
             # self._log.info('=> Rank {}: will save everything to {}'.format(self.rank, self.args.save_root))
 
             # show configurations
-            cfg_str = pprint.pformat(self.args)
+            # cfg_str = pprint.pformat(self.args)
             # self._log.info('=> configurations \n ' + cfg_str)
             # self._log.info('{} training samples found'.format(len(self.train_set)))
             # self._log.info('{} validation samples found'.format(len(self.valid_set)))
-            self.summary_writer = SummaryWriter(str(self.args.save_root))
+            if update_tensorboard:
+                self.summary_writer = SummaryWriter(str(self.args.save_root))
         
-        self.train_loader = self._get_dataloaders(self.train_set)
+        self.train_loader = self._get_dataloader(self.train_set)
         self.args.epoch_size = min(self.args.epoch_size, len(self.train_loader))
 
         torch.cuda.set_device(self.rank)
@@ -73,7 +74,7 @@ class BaseTrainer:
 
         self.model = self._init_model(self.model)
 
-    def _get_dataloaders(self, train_set:torch.utils.data.Dataset) -> torch.utils.data.dataloader.DataLoader:
+    def _get_dataloader(self, train_set:torch.utils.data.Dataset) -> torch.utils.data.dataloader.DataLoader:
         train_sampler = torch.utils.data.distributed.DistributedSampler(
     	                    train_set,
                             shuffle=False,
@@ -155,4 +156,16 @@ class BaseTrainer:
         save_checkpoint(self.save_root, models, name, is_best)
     
 
+    def _decide_on_early_stop(self):
+        if self.reduce_loss_delay > self.max_reduce_loss_delay:
+            break_ = True
+        else:
+            break_ = False
+        return break_
 
+    def _update_loss_dropping(self, avg_loss):
+        if avg_loss < self.lowest_loss:
+            self.lowest_loss = avg_loss
+            self.reduce_loss_delay = 0
+        else:
+            self.reduce_loss_delay += 1

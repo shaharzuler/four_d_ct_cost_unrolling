@@ -47,7 +47,7 @@ class TrainFramework(BaseTrainer):
         aux = (aux12, aux21)
         return flows, aux
 
-    def update_to_tensorboard(self, key_meter_names, key_meters):#, visible_masks, ncc_loss_viz=None):
+    def update_to_tensorboard(self, key_meter_names, key_meters):
         if self.rank ==0 and self.i_iter % self.args.record_freq == 0:
             for v, name in zip(key_meters.val, key_meter_names):
                 self.summary_writer.add_scalar('Train_' + name, v, self.i_iter)
@@ -98,13 +98,15 @@ class TrainFramework(BaseTrainer):
                 return self.variance_validate()
             elif self.args.valid_type == 'l2r_valid':
                 return self._validate_with_gt()
-            elif 'cardio_test' in self.args.valid_type: 
+            elif self.args.valid_type == "basic": 
                 return self._validate_self(validation_data["validate_self"])
 
-    def _validate_self(self, validate_self_data:dict) -> None:
+    def _validate_basic(self, validate_data:dict) -> None: # optional - also validate by iou
         if self.i_iter > self.args.save_iter:
-            self._save_model(validate_self_data["avg_loss"], name=self.model_suffix) 
-        return 
+            self._save_model(validate_data["avg_loss"], name=self.model_suffix) 
+
+    def _validate_self(self, validate_self_data:dict) -> None:
+        self._validate_basic(validate_self_data) 
 
     def _validate_batch(self, batch_time, end, i_step, data):
         prepared_data = self._prepare_data(data)

@@ -396,7 +396,7 @@ def write_flow_as_nrrd(flow, folderpath='.', filename="flow.nrrd"):
     nrrd.write(os.path.join(folderpath,"y"+filename), flow[1,:,:,:])
     nrrd.write(os.path.join(folderpath,"z"+filename), flow[2,:,:,:])
 
-def get_most_contours_from_hirarchies(contours):
+def _get_most_contours_from_hirarchies(contours):
     most_contours = np.zeros([0])
     for contours_level in contours:
         if contours_level.shape[0] > most_contours.shape[0]:
@@ -405,17 +405,17 @@ def get_most_contours_from_hirarchies(contours):
 
 def get_mask_contours(mask:np.array, downsample_factor:int=2):
     contours, hierarchy = cv2.findContours(image=mask.astype(np.uint8), mode=cv2.RETR_EXTERNAL, method=cv2.CHAIN_APPROX_SIMPLE)
-    contours = get_most_contours_from_hirarchies(contours)
+    contours = _get_most_contours_from_hirarchies(contours)
     contours = contours[::downsample_factor,:,:]
     return contours
 
-def add_flow_contour_arrows(image:np.array, contours:np.array, slice_flow:np.array, arrow_scale_factor:int=5, equal_arrow_length:bool=False):
+def _add_flow_contour_arrows(image:np.array, contours:np.array, slice_flow:np.array, arrow_scale_factor:int=5, equal_arrow_length:bool=False):
     for contour in contours:
-        start, end = get_arrow_start_end_coords(contour, slice_flow, arrow_scale_factor, equal_arrow_length)
+        start, end = _get_arrow_start_end_coords(contour, slice_flow, arrow_scale_factor, equal_arrow_length)
         image = cv2.arrowedLine(image,(start[0],start[1]),(end[0],end[1]),color=(0,0,0),thickness=1)
     return image
 
-def get_arrow_start_end_coords(contour, slice_flow, arrow_scale_factor, equal_arrow_length):
+def _get_arrow_start_end_coords(contour, slice_flow, arrow_scale_factor, equal_arrow_length):
     start = contour[0]
     delta = slice_flow[:, contour[0,1], contour[0,0]]
     if equal_arrow_length:
@@ -423,9 +423,9 @@ def get_arrow_start_end_coords(contour, slice_flow, arrow_scale_factor, equal_ar
     end = np.round(start+delta*arrow_scale_factor).astype(start.dtype)
     return start, end
 
-def add_arrows_from_mask_on_2d_img(img_slice, mask_slice, flow_slice):
+def _add_arrows_from_mask_on_2d_img(img_slice, mask_slice, flow_slice):
     contours = get_mask_contours(mask_slice)        
-    img_slice_w_arrows = add_flow_contour_arrows(img_slice, contours, flow_slice)
+    img_slice_w_arrows = _add_flow_contour_arrows(img_slice, contours, flow_slice)
     return img_slice_w_arrows
 
 def disp_flow_as_arrows(img:np.array, seg:np.array, flow:np.array) -> np.array:
@@ -434,9 +434,9 @@ def disp_flow_as_arrows(img:np.array, seg:np.array, flow:np.array) -> np.array:
     mask_x_1, mask_y_1, mask_z_1 = extract_img_middle_slices(seg)
     slice_x_flow, slice_y_flow, slice_z_flow = get_2d_flow_sections(flow)
 
-    slice_x_w_arrows = add_arrows_from_mask_on_2d_img(img_slice_x, mask_x_1, slice_x_flow)
-    slice_y_w_arrows = add_arrows_from_mask_on_2d_img(img_slice_y, mask_y_1, slice_y_flow)
-    slice_z_w_arrows = add_arrows_from_mask_on_2d_img(img_slice_z, mask_z_1, slice_z_flow)
+    slice_x_w_arrows = _add_arrows_from_mask_on_2d_img(img_slice_x, mask_x_1, slice_x_flow)
+    slice_y_w_arrows = _add_arrows_from_mask_on_2d_img(img_slice_y, mask_y_1, slice_y_flow)
+    slice_z_w_arrows = _add_arrows_from_mask_on_2d_img(img_slice_z, mask_z_1, slice_z_flow)
 
     all_flow_arrowed_disp = np.concatenate([slice_x_w_arrows, slice_y_w_arrows, slice_z_w_arrows], axis=1)
     all_flow_arrowed_disp = np.expand_dims(np.transpose(all_flow_arrowed_disp, (2,0,1)), 0)
