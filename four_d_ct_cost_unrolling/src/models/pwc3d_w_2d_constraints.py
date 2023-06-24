@@ -29,10 +29,10 @@ class PWC3Dw2dConstraints(PWC3D):
         res_dict["unconstrained_flows_fw"] = res_dict["flows_fw"]
         res_dict["flows_fw"] = constrained_flows 
         res_dict["2d_constraints"] = data["2d_constraints"]
-        return res_dict #todo maybe res_dict is dataclass
+        return res_dict 
         
 class TwoDConstraintsNetwork(nn.Module):
-    def __init__(self, num_neurons=36):#36): #num_neurons=48): 
+    def __init__(self, num_neurons=36): #num_neurons=48): 
         super().__init__()
         self.convs = nn.Sequential(
             conv(in_planes=6, out_planes=num_neurons, kernel_size=3, stride=1, dilation=1, isReLU=True),   

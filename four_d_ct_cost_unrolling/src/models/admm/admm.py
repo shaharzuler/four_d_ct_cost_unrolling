@@ -41,7 +41,6 @@ class ADMMSolverBlock(nn.Module):
             C.append(c)
             Betas.append(beta)
 
-        #return [Q[-1]], [C[-1]], [Betas[-1]]
         self.count += 1
         return Q, C, Betas
     
@@ -118,9 +117,5 @@ class Sobel(nn.Module):
         dx = torch.cat([g[:,0:1,:,:] for g in grad_ch], dim=1)
         dy = torch.cat([g[:,1:2,:,:] for g in grad_ch], dim=1)
         dz = torch.cat([g[:,2:3,:,:] for g in grad_ch], dim=1)
-
-        #dx = grad[:,0:1,:,:,:]
-        #dy = grad[:,1:2,:,:,:]
-        #dz = grad[:,2:3,:,:,:]
 
         return [dl / l for dl,l in zip([dx, dy, dz],vox_dims.squeeze())]

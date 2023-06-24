@@ -138,13 +138,10 @@ class BaseTrainer:
                 "but only {} are available.".format(n_gpu_use, n_gpu))
             n_gpu_use = n_gpu
         device = torch.device('cuda:0' if n_gpu_use > 0 else 'cpu')
-        #list_ids = list(range(n_gpu_use))
         return device, n_gpu_use
 
     def _save_model(self, loss, name):
-        is_best = loss < self.lowest_loss   
-        # is_best = max(is_best, ((self.i_iter % (self.args.record_freq*50)) == 0)) # workaround since I needed also some backup checkpoints, the error measure was N/A anyway
-        
+        is_best = loss < self.lowest_loss          
         if is_best:
             self.lowest_loss = loss
         

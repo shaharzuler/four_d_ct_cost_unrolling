@@ -20,7 +20,6 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         self.max_reduce_loss_delay : int = args.max_reduce_loss_delay
         
         self.inference_args = args.inference_args
-        # self.inference_flow_median_filter_size = args.inference_args.inference_flow_median_filter_size
 
     def _run_one_epoch(self) -> bool:
         am_batch_time, am_data_time, key_meter_names, key_meters, end = self._init_epoch()
@@ -58,7 +57,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         break_ = self._decide_on_early_stop()
         return break_
 
-    def _visualize(self, data:dict, pred_flow:torch.tensor):   # TODO REFACTOR THIS MESS # img1->template_image, img2->unlabeled_image 
+    def _visualize(self, data:dict, pred_flow:torch.tensor): 
         self._add_orig_images_to_tensorboard(data, pred_flow)
         img1_recons_disp = self._add_warped_image_to_tensorboard(data, pred_flow)
         self._add_warped_seg_mask_to_tensorboard(data, pred_flow, img1_recons_disp)

@@ -156,5 +156,5 @@ class PullSegmentationMapTrainFrameworkWith2dConstraints(PullSegmentationMapTrai
                 np.concatenate([slice_x_1_constraints, slice_y_1_constraints, slice_z_1_constraints],axis=1)
                 ], axis=0)
 
-class PullSegmentationMapTrainFrameworkWith2dConstraintsInference(PullSegmentationMapTrainFramework): # TODO
+class PullSegmentationMapTrainFrameworkWith2dConstraintsInference(PullSegmentationMapTrainFramework): # TODO jusp impl infer method in class above.
     pass
