@@ -9,12 +9,13 @@ from .pull_seg_train_framework import PullSegmentationMapTrainFramework
 
 
 class PullSegmentationMapTrainFrameworkWith2dConstraints(PullSegmentationMapTrainFramework):
-    def __init__(self, train_loader, valid_loader, model, loss_func, args) -> None:
-        super().__init__(train_loader, valid_loader, model, loss_func, args)
+    def __init__(self, train_loader, model, loss_func, args) -> None:
+        super().__init__(train_loader, model, loss_func, args)
     
     def _prepare_data(self, d):
         data = super()._prepare_data(d)
-        data["2d_constraints"] = d["2d_constraints"]
+        data["two_d_constraints"] = d["two_d_constraints"]
+        data["two_d_constraints_with_nans"]= d["two_d_constraints_with_nans"]
         return data
 
     def _init_key_meters(self):
@@ -22,26 +23,23 @@ class PullSegmentationMapTrainFrameworkWith2dConstraints(PullSegmentationMapTrai
         key_meters = AverageMeter(i=len(key_meter_names), print_precision=4, names=key_meter_names)
         return key_meter_names, key_meters
 
-    def _compute_loss_terms(self, data, img1, img2, vox_dim, flows, aux, res_dict): #TODO only pass constraints and not entire resdict or aux
-        loss, l_ph, l_sm, flow_mean = super()._compute_loss_terms(img1, img2, vox_dim, flows, aux)
-        l_constraints = self._get_constraints_loss(flows, res_dict, data, aux) #TODO only pass constraints and not entire resdict or aux
+    def _compute_loss_terms(self, img1, img2, vox_dim, flows, aux, data, __): #TODO only pass constraints and not entire resdict or aux
+        loss, (l_ph, l_sm, flow_mean) = super()._compute_loss_terms(img1, img2, vox_dim,flows, aux, None,None)
+        l_constraints = self._get_constraints_loss(flows, data)
         loss += l_constraints
 
         return loss, (l_ph, l_sm, flow_mean, l_constraints)
 
-    def _get_constraints_loss(self, flows, res_dict, data, aux):
-        if "2d_constraints" in data.keys():
-            aux[0]["bin_seg_mask"] = torch.unsqueeze(torch.max(torch.where(data["2d_constraints"]!=0,1,0),axis=1).values, 0) # does accidently include also where onstraints are 0. FIXME TOOD
-
+    def _get_constraints_loss(self, flows, data):
+        if "two_d_constraints" in data.keys():
+            mask = ~torch.isnan(data["two_d_constraints_with_nans"])[:,:1,:,:,:]
+        l_constraints = 0.0
         for loss_, module_ in self.loss_modules.items():
             if "constraints" in loss_:
-                l_constraints = module_(flows, res_dict["2d_constraints"])
-            else:
-                l_constraints = 0.0
+                l_constraints = module_(flows, data["two_d_constraints"].to(flows[0].device), mask.to(flows[0].device))
         return l_constraints
 
-
-    def _visualize(self, data, pred_flow, i_step):   # TODO REFACTOR THIS MESS
+    def _visualize(self, data, pred_flow):   # TODO REFACTOR THIS MESS
         arrow_scale_factor=1
         equal_arrow_length = False
         if "unconstrained_flows_fw" in pred_flow.keys():

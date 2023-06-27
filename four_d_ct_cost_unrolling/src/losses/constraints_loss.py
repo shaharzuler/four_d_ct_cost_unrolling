@@ -1,26 +1,23 @@
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from matplotlib import pyplot as plt
+
+from ..utils.flow_utils import rescale_flow_tensor, rescale_mask_tensor
 
 class ConstraintsLoss(nn.modules.Module):
     def __init__(self, args):
         super(ConstraintsLoss, self).__init__() #TODO introduce weights!
         self.args = args
 
-    def forward(self, pred_flow, constraints, mode='l1'): #TODO EXTRACT MODE
-        constraints=constraints.to(pred_flow[0].device)
+    def forward(self, pred_flow, constraints, mask, mode='l1'): #TODO EXTRACT MODE
         loss = 0.0
         for flow, scale in zip(pred_flow, self.args.w_constraints_scales):
-            _, _, H, W, D = flow.shape
-            constraints_scaled = F.interpolate(constraints, (H, W, D), mode='area')
-            ratio = H/constraints.shape[2]
-            constraints_scaled *= ratio
-            _,v,_ = plt.hist(constraints_scaled.abs().flatten().cpu().numpy(),bins=100)
-            constraints_scaled_mask = torch.where(constraints_scaled.abs()<v[1],0,1)
+            flow = flow[:,:3,:,:,:]
+            constraints_scaled, scale_factor = rescale_flow_tensor(constraints, flow.shape, return_scale_factor=True)
+            mask_scaled = rescale_mask_tensor(mask, scale_factor)
             if mode == 'l1':
-                loss += scale*(flow[:, :3,:,:,:]*constraints_scaled_mask - constraints_scaled).abs().mean() 
+                loss += scale*(flow * mask_scaled - constraints_scaled).abs().mean() 
             elif mode == 'l2':
-                loss += scale*((flow[:, :3,:,:,:]*constraints_scaled_mask - constraints_scaled)**2).mean() 
+                loss += scale*((flow * mask_scaled - constraints_scaled)**2).mean() 
 
         return loss
+
+

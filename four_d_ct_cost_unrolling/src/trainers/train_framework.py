@@ -17,13 +17,13 @@ class TrainFramework(BaseTrainer):
         super(TrainFramework, self).__init__(train_loader, model, loss_func, args)
 
     def _run_one_epoch(self):
-        am_batch_time, am_data_time, key_meter_names, key_meters, end = self._init_epoch()
+        am_batch_time, am_data_time, key_meter_names, key_meters, end = self._init_epoch() #TODO is this code functioning even?
         for i_step, data in enumerate(self.train_loader):
             if i_step > self.args.epoch_size:
                 break
             prepared_data = self._prepare_data(data)
             with autocast():
-                res_dict = self.model(prepared_data)
+                res_dict = self.model(prepared_data) #TODO is this code functioning?
                 flows, aux = self._post_process_model_output(res_dict)
                 loss, l_ph, l_sm, flow_mean, l_mwl, l_cyc, l_kpts = self._compute_loss_terms(data, prepared_data["img1"], prepared_data["img2"], prepared_data["vox_dim"], flows, aux)
             meters = [loss, l_ph, l_sm, l_mwl, l_cyc, l_kpts, flow_mean]
@@ -36,7 +36,6 @@ class TrainFramework(BaseTrainer):
 
     def _compute_loss_terms(self, img1, img2, vox_dim, flows, aux, _, __):
         loss, l_ph, l_sm, flow_mean = self.loss_modules['loss_module'](flows, img1, img2, aux, vox_dim)
-
         return loss, (l_ph, l_sm, flow_mean)
 
     def _post_process_model_output(self, res_dict):

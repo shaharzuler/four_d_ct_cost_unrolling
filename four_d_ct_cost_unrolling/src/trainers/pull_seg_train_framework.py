@@ -23,15 +23,13 @@ class PullSegmentationMapTrainFramework(TrainFramework):
 
     def _run_one_epoch(self) -> bool:
         am_batch_time, am_data_time, key_meter_names, key_meters, end = self._init_epoch()
-
         for data in self.train_loader:
-
             prepared_data = self._prepare_data(data)
             am_data_time.update(time.time() - end)
             res_dict = self.model(prepared_data) 
             flows, aux = self._post_process_model_output(res_dict)
 
-            loss, meters = self._compute_loss_terms(prepared_data["img1"], prepared_data["img2"], prepared_data["vox_dim"], flows, aux, None, None)
+            loss, meters = self._compute_loss_terms(prepared_data["img1"], prepared_data["img2"], prepared_data["vox_dim"], flows, aux, prepared_data, None)
             meters = [loss, *meters]
             vals = [m.item() if torch.is_tensor(m) else m for m in meters]
             key_meters.update(vals, prepared_data["img1"].size(0))
@@ -54,7 +52,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         self._validate(validation_data=validation_data)
 
         self._update_loss_dropping(avg_loss)
-        break_ = self._decide_on_early_stop()
+        break_ = self._deicide_on_early_stop()
         return break_
 
     def _visualize(self, data:dict, pred_flow:torch.tensor): 

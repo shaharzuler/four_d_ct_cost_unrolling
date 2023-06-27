@@ -35,8 +35,7 @@ class UnFlowLoss(nn.modules.Module):
             loss += [self.args.w_ssim * SSIM(img1_recons, img1_scaled)]
 
         if self.args.w_ternary > 2:
-            loss += [self.args.w_ternary *
-                     TernaryLoss(img1_recons, img1_scaled)]
+            loss += [self.args.w_ternary * TernaryLoss(img1_recons, img1_scaled)]
 
         return sum([l.mean() for l in loss])
 

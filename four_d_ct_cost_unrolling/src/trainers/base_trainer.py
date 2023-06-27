@@ -30,7 +30,7 @@ class BaseTrainer:
 
 
     def train(self, rank, world_size):
-        self._init_rank(rank,world_size)
+        self._init_rank(rank, world_size)
         
         for epoch in range(self.args.epochs):
             break_ = self._run_one_epoch()
@@ -107,7 +107,6 @@ class BaseTrainer:
             #     self._log.info(f'Loading model from {self.args.load}')
             epoch, weights = load_checkpoint(self.args.load)
 
-            
             new_weights = OrderedDict()
             model_keys = list(model.state_dict().keys())
             weight_keys = list(weights.keys())
@@ -153,7 +152,7 @@ class BaseTrainer:
         save_checkpoint(self.save_root, models, name, is_best)
     
 
-    def _decide_on_early_stop(self):
+    def _deicide_on_early_stop(self):
         if self.reduce_loss_delay > self.max_reduce_loss_delay:
             break_ = True
         else:

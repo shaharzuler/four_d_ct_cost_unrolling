@@ -7,6 +7,7 @@ from ..utils.flow_utils import flow_warp
 from .admm.admm import ADMMSolverBlock, MaskGenerator
 import math
 import numpy as np
+from ..utils.flow_utils import rescale_flow_tensor
 
 class PWC3D(nn.Module):
     def __init__(self, args, upsample=True, search_range=4): 
@@ -107,10 +108,7 @@ class PWC3D(nn.Module):
             if l == 0:
                 x2_warp = _x2
             else:
-                scale_factor = np.array(_x2.shape[2:])/np.array(flow12.shape[2:])
-                for i in range(3):
-                    flow12[:,i,:,:,:] *= scale_factor[i]
-                flow12 = F.interpolate(flow12, scale_factor=tuple(scale_factor), mode='trilinear')
+                flow12 = rescale_flow_tensor(flow12, _x2.shape)
                 x2_warp = flow_warp(_x2, flow12)
 
             # correlation

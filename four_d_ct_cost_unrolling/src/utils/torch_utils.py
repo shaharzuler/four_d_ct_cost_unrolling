@@ -1,5 +1,6 @@
 import torch
 import shutil
+import torch.nn.functional as F
 
 
 def weight_parameters(module):
@@ -25,3 +26,10 @@ def save_checkpoint(save_dir, states, prefix, is_best, filename='ckpt.pth.tar'):
     if is_best:
         shutil.copyfile(file_path, save_dir / f'{prefix}_model_best.pth.tar')
 
+
+def rescale_mask_tensor(mask:torch.tensor, scale_factor:tuple):
+    if scale_factor != (1,1,1):
+        mask_scaled = F.interpolate(mask.float(), scale_factor=scale_factor, mode='nearest').bool()
+    else:
+        mask_scaled = mask
+    return mask_scaled
