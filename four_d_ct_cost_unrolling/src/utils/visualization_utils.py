@@ -126,7 +126,7 @@ def _add_arrows_from_mask_on_2d_img(img_slice, mask_slice, flow_slice):
     img_slice_w_arrows = _add_flow_contour_arrows(img_slice, contours, flow_slice)
     return img_slice_w_arrows
 
-def disp_flow_as_arrows(img:np.array, seg:np.array, flow:np.array) -> np.array:
+def disp_flow_as_arrows(img:np.array, seg:np.array, flow:np.array, text:str=None) -> np.array:
     img_slices_gray = extract_img_middle_slices(img)
     img_slice_x, img_slice_y, img_slice_z = [cv2.cvtColor(slice.astype(np.float32),cv2.COLOR_GRAY2RGB) for slice in img_slices_gray]
     mask_x_1, mask_y_1, mask_z_1 = extract_img_middle_slices(seg)
@@ -137,5 +137,7 @@ def disp_flow_as_arrows(img:np.array, seg:np.array, flow:np.array) -> np.array:
     slice_z_w_arrows = _add_arrows_from_mask_on_2d_img(img_slice_z, mask_z_1, slice_z_flow)
 
     all_flow_arrowed_disp = np.concatenate([slice_x_w_arrows, slice_y_w_arrows, slice_z_w_arrows], axis=1)
+    if text is not None:
+        all_flow_arrowed_disp=cv2.putText(all_flow_arrowed_disp, text, org=(10,20), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.5, color=(1.,0,0))
     all_flow_arrowed_disp = np.expand_dims(np.transpose(all_flow_arrowed_disp, (2,0,1)), 0)
     return all_flow_arrowed_disp

@@ -1,6 +1,7 @@
 import torch.nn as nn
 
-from ..utils.flow_utils import rescale_flow_tensor, rescale_mask_tensor
+from ..utils.flow_utils import rescale_flow_tensor
+from ..utils.torch_utils import rescale_mask_tensor
 
 class ConstraintsLoss(nn.modules.Module):
     def __init__(self, args):

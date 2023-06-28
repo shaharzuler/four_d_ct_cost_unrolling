@@ -38,7 +38,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
             end = time.time()
 
             self.update_to_tensorboard(key_meter_names, key_meters)
-            self._visualize(data, flows[0][:,:3,:,:,:].cpu()) 
+            self._visualize(data, flows[0][:,:3,:,:,:].cpu(), res_dict) 
             
             self.i_iter += 1
         avg_loss=key_meters.get_avg_meter_name("Loss")
@@ -55,13 +55,15 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         break_ = self._deicide_on_early_stop()
         return break_
 
-    def _visualize(self, data:dict, pred_flow:torch.tensor): 
+    
+
+    def _visualize(self, data:dict, pred_flow:torch.tensor, res_dict:dict=None): 
         self._add_orig_images_to_tensorboard(data, pred_flow)
         img1_recons_disp = self._add_warped_image_to_tensorboard(data, pred_flow)
         self._add_warped_seg_mask_to_tensorboard(data, pred_flow, img1_recons_disp)
-        self._add_flow_arrows_on_mask_contours_to_tensorboard(data, torch_to_np(pred_flow[0]))
+        self._add_flow_arrows_on_mask_contours_to_tensorboard(data, torch_to_np(pred_flow[0]), res_dict)
 
-    def _add_flow_arrows_on_mask_contours_to_tensorboard(self, data, pred_flow):
+    def _add_flow_arrows_on_mask_contours_to_tensorboard(self, data, pred_flow, _):
         img1 = torch_to_np(data["template_image"][0])
         seg = torch_to_np(data["template_seg"][0])
         all_flow_arrowed_disp = disp_flow_as_arrows(img1, seg, pred_flow)

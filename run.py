@@ -102,7 +102,7 @@ args = {
     "batch_size": 1,
     "w_sm_scales":[20, 0, 0, 0, 0],
     "record_freq": 1,
-    "valid_type": "synthetic",
+    "valid_type": "basic",
     "save_iter": 50,
     "w_constraints_scales": [1.0, 1.0, 1.0, 1.0, 1.0],
     "inference_args": {
