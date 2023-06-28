@@ -90,7 +90,7 @@ class TrainFramework(BaseTrainer):
         if hasattr(self.args,'dump_disp') and self.args.dump_disp:
             return self._dumpt_disp_fields()
         else:
-            if self.args.valid_type == 'synthetic':
+            if self.args.valid_type == 'synthetic': #TODO make sure it works!
                 return self.synt_validate(validation_data["synt_validate"])
             elif self.args.valid_type == 'variance_valid':
                 return self.variance_validate()
@@ -105,7 +105,7 @@ class TrainFramework(BaseTrainer):
         self._validate_basic(validate_self_data) 
 
     
-    def synt_validate(self):
+    def synt_validate(self): #TODO
         error = 0
         loss = 0
 
@@ -118,14 +118,14 @@ class TrainFramework(BaseTrainer):
 
             output = self.model(img1, img2, vox_dim=vox_dim)
 
-            log(f'flow_size = {output[0].size()}')
-            log(f'flow_size = {output[0].shape}')
+            # log(f'flow_size = {output[0].size()}')
+            # log(f'flow_size = {output[0].shape}')
 
             flow12_net = output[0].squeeze(0).float().to(self.device)  # Remove batch dimension, net prediction
             epe_map = torch.sqrt(torch.sum(torch.square(flow12 - flow12_net), dim=0)).to(self.device).mean()
             # epe_map = torch.abs(flow12 - flow12_net).to(self.device).mean()
             error += float(epe_map.mean().item())
-            log(error)
+            # log(error)
 
             _loss, l_ph, l_sm = self.loss_func(output, img1, img2, vox_dim)
             loss += float(_loss.mean().item())

@@ -19,6 +19,7 @@ class PullSegmentationMapTrainFrameworkWith2dConstraints(PullSegmentationMapTrai
         data = super()._prepare_data(d)
         data["two_d_constraints"] = d["two_d_constraints"]
         data["two_d_constraints_with_nans"]= d["two_d_constraints_with_nans"]
+        data["two_d_constraints_mask"] = torch.unsqueeze(d["two_d_constraints_mask"], 1)
         return data
 
     def _init_key_meters(self):
@@ -26,7 +27,7 @@ class PullSegmentationMapTrainFrameworkWith2dConstraints(PullSegmentationMapTrai
         key_meters = AverageMeter(i=len(key_meter_names), print_precision=4, names=key_meter_names)
         return key_meter_names, key_meters
 
-    def _compute_loss_terms(self, img1, img2, vox_dim, flows, aux, data, __): #TODO only pass constraints and not entire resdict or aux
+    def _compute_loss_terms(self, img1, img2, vox_dim, flows, aux, data, __): 
         loss, (l_ph, l_sm, flow_mean) = super()._compute_loss_terms(img1, img2, vox_dim,flows, aux, None,None)
         l_constraints = self._get_constraints_loss(flows, data)
         loss += l_constraints
@@ -39,7 +40,7 @@ class PullSegmentationMapTrainFrameworkWith2dConstraints(PullSegmentationMapTrai
         l_constraints = 0.0
         for loss_, module_ in self.loss_modules.items():
             if "constraints" in loss_:
-                l_constraints = module_(flows, data["two_d_constraints"].to(flows[0].device), mask.to(flows[0].device))
+                l_constraints = module_(flows, data["two_d_constraints"].to(flows[0].device), data['two_d_constraints_mask'].to(flows[0].device))
         return l_constraints
 
     def _add_flow_arrows_on_mask_contours_to_tensorboard(self, data, pred_flow, res_dict): # TODO check TB visually
@@ -51,9 +52,3 @@ class PullSegmentationMapTrainFrameworkWith2dConstraints(PullSegmentationMapTrai
         all_flow_arrowed_disp = np.concatenate([all_flow_arrowed_before_constraints_disp, all_flow_arrowed_constraints_disp, all_flow_arrowed_after_constraints_disp], axis=2)
 
         self.summary_writer.add_images('sample_flows', all_flow_arrowed_disp, self.i_epoch, dataformats='NCHW')
-
-
-
-
-class PullSegmentationMapTrainFrameworkWith2dConstraintsInference(PullSegmentationMapTrainFramework): # TODO jusp impl infer method in class above.
-    pass

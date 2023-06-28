@@ -67,7 +67,7 @@ class UnFlowLoss(nn.modules.Module):
             if i == 0:
                 s = min(H, W, D)
 
-            loss_smooth = self.loss_smooth(flow=flow12 / s, img1_scaled=img1_recons, vox_dim=vox_dim) #TODO what is the s for?? TODO remove all remaining for segmentation there
+            loss_smooth = self.loss_smooth(flow=flow12 / s, img1_scaled=img1_recons, vox_dim=vox_dim) #TODO what is the s for?? 
             loss_photometric = self.loss_photometric(img1_scaled, img1_recons)
             # log(f'Computed losses for level {i+1}: loss_warp={loss_photometric}, loss_smoth={loss_smooth}')
             pyramid_smooth_losses.append(loss_smooth)

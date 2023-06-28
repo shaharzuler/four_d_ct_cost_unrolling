@@ -86,7 +86,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         imgs_disp = disp_training_fig(torch_to_np(data["template_image"][0]), torch_to_np(data["unlabeled_image"][0]), torch_to_np(pred_flow[0]))
         self.summary_writer.add_images(f'original_images', imgs_disp, self.i_epoch, dataformats='NCHW')
 
-    def infer(self,rank,world_size):
+    def infer(self, rank, world_size, save_mask=True):
         self._init_rank(rank, world_size, update_tensorboard=False)
         self.model.eval()
         for data in self.train_loader:
@@ -98,8 +98,8 @@ class PullSegmentationMapTrainFramework(TrainFramework):
                 for axis in range(3):
                     print(f"Applying median filter on axis {axis}")
                     flow_tensor[:,axis,:,:,:] = torch.tensor(scipy.ndimage.median_filter(input=torch_to_np(flow_tensor[:,axis,:,:]), size=self.inference_args.inference_flow_median_filter_size))
-                    
-            self.warp_and_save_mask(data, flow_tensor) 
+            if save_mask:
+                self.warp_and_save_mask(data, flow_tensor) 
 
     def warp_and_save_mask(self, data, flow, save_nrrd=False): 
         template_seg_map = data["template_seg"] 

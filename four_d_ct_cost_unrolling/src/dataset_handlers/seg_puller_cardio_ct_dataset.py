@@ -33,6 +33,7 @@ class SegmentationPullerCardiosampleWithConstraintsArgs(SegmentationPullerCardio
 class SegmentationPullerSampleWithConstraints(SegmentationPullerSample):
     two_d_constraints : np.array = None
     two_d_constraints_with_nans : np.array = None
+    two_d_constraints_mask : np.array = None
 
 
 class SegmentationPullerCardioDataset(Dataset): # this lean version only supports overfit. for the full version go to https://github.com/gallif/_4DCTCostUnrolling
@@ -47,7 +48,7 @@ class SegmentationPullerCardioDataset(Dataset): # this lean version only support
             self.sample.flows_gt = torch.tensor(np.load(dataset_args.flows_gt_path))
         else:
             self.sample.flows_gt = torch.tensor([])
-        if normalize:
+        if normalize: #TODO maybe save min max vals with weights??
             min_ = min(self.sample.template_image.min(), self.sample.unlabeled_image.min())
             max_ = max(self.sample.template_image.max(), self.sample.unlabeled_image.max())
             self.sample.template_image  = self.min_max_norm(self.sample.template_image,  min_, max_)
@@ -68,11 +69,11 @@ class SegmentationPullerCardioDataset(Dataset): # this lean version only support
 
 class SegmentationPullerCardioDatasetWithConstraints(SegmentationPullerCardioDataset): # this lean version only supports overfit. for the full version go to https://github.com/gallif/_4DCTCostUnrolling
     def __init__(self, dataset_args:SegmentationPullerCardiosampleWithConstraintsArgs)-> None:
-        super().__init__(dataset_args=dataset_args, sample_type=SegmentationPullerSampleWithConstraints)
-        two_d_constraints_arr = np.load(dataset_args.two_d_constraints_path) # this will be a np arr shape 200,200,136,3 with mostly np.Nans and some floats.  #TODO - orig SegmentationPullerCardioDataset has the code at the end of getitem to convert flow to constraints (enveloping, blur, extrapolate to nearest point on envelope)
+        super().__init__(dataset_args=dataset_args, sample_type=SegmentationPullerSampleWithConstraints) #TODO save constraints with model weights!!!
+        two_d_constraints_arr = np.load(dataset_args.two_d_constraints_path) # this will be a np arr shape 200,200,136,3 with mostly np.Nans and some floats. 
         two_d_constraints = attach_flow_between_segs(two_d_constraints_arr, torch_to_np(self.sample.template_seg)) #TODO add more processing such as blurring, thickening??
         self.sample.two_d_constraints_with_nans = xyz3_to_3xyz(two_d_constraints) 
         self.sample.two_d_constraints = np.nan_to_num(self.sample.two_d_constraints_with_nans)
-        self.sample.two_d_constraints_mask = ~np.isnan(self.sample.two_d_constraints_with_nans)[0]
+        self.sample.two_d_constraints_mask = ~np.isnan(self.sample.two_d_constraints_with_nans)[0] 
         self.sample_dict = asdict(self.sample)
    

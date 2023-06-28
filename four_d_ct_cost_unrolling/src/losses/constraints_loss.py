@@ -5,7 +5,7 @@ from ..utils.torch_utils import rescale_mask_tensor
 
 class ConstraintsLoss(nn.modules.Module):
     def __init__(self, args):
-        super(ConstraintsLoss, self).__init__() #TODO introduce weights!
+        super(ConstraintsLoss, self).__init__() 
         self.args = args
 
     def forward(self, pred_flow, constraints, mask, mode='l1'): #TODO EXTRACT MODE

@@ -27,7 +27,7 @@ def infer_backbone(template_image_path, unlabeled_image_path, template_seg_path,
     data_sample_args = SegmentationPullerCardioSampleArgs(template_image_path, unlabeled_image_path, template_seg_path, unlabeled_seg_path)
     train_set = SegmentationPullerCardioDataset(data_sample_args, sample_type=SegmentationPullerSample)
     model = PWC3D(args)
-    loss = get_loss(args)
+    loss = get_loss(args) # is loss nesseccary? TODO
     trainer = PullSegmentationMapTrainFramework(train_set, model, loss, args)
     trainer.infer(0, 1)
 
@@ -44,11 +44,15 @@ def overfit_w_constraints(template_image_path, unlabeled_image_path, template_se
     trainer = PullSegmentationMapTrainFrameworkWith2dConstraints(train_set, model, loss, args)
     trainer.train(0, 1)
 
-def infer_w_constraints(template_image_path, unlabeled_image_path, template_seg_path, unlabeled_seg_path, two_d_constraints_path, args=None):
-    data_sample_args = SegmentationPullerCardiosampleWithConstraintsArgs(template_image_path, unlabeled_image_path, template_seg_path, unlabeled_seg_path, two_d_constraints_path)
+def infer_w_constraints(template_image_path, unlabeled_image_path, template_seg_path, unlabeled_seg_path, save_mask, two_d_constraints_path, args=None):
+    data_sample_args = SegmentationPullerCardiosampleWithConstraintsArgs(template_image_path=template_image_path, 
+        unlabeled_image_path=unlabeled_image_path, 
+        template_seg_path=template_seg_path, 
+        unlabeled_seg_path=unlabeled_seg_path, 
+        two_d_constraints_path=two_d_constraints_path)
     train_set = SegmentationPullerCardioDatasetWithConstraints(data_sample_args)
     model = PWC3Dw2dConstraints(args)
-    loss = get_loss(args)
+    loss = get_loss(args) # is loss nesseccary? TODO
     trainer = PullSegmentationMapTrainFrameworkWith2dConstraints(train_set, model, loss, args)
-    trainer.infer(0, 1)
+    trainer.infer(0, 1, save_mask=save_mask)
 
