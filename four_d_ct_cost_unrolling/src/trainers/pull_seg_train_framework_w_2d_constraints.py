@@ -43,7 +43,7 @@ class PullSegmentationMapTrainFrameworkWith2dConstraints(PullSegmentationMapTrai
                 l_constraints = module_(flows, data["two_d_constraints"].to(flows[0].device), data['two_d_constraints_mask'].to(flows[0].device))
         return l_constraints
 
-    def _add_flow_arrows_on_mask_contours_to_tensorboard(self, data, pred_flow, res_dict): # TODO check TB visually
+    def _add_flow_arrows_on_mask_contours_to_tensorboard(self, data, pred_flow, res_dict): 
         img1 = torch_to_np(data["template_image"][0])
         seg = torch_to_np(data["template_seg"][0])
         all_flow_arrowed_before_constraints_disp = disp_flow_as_arrows(img1, seg, torch_to_np(res_dict['unconstrained_flows_fw'][0][0][0]), text="before_constraints")

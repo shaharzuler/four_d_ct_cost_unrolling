@@ -5,6 +5,8 @@ import numpy as np
 from sklearn.neighbors import NearestNeighbors
 import torch.nn.functional as F
 
+from three_d_data_manager import extract_segmentation_envelope
+
 def _mesh_grid(B, H, W, D):
     # batches not implented
     x = torch.arange(H)
@@ -34,9 +36,6 @@ def flow_warp(img2, flow12, pad='border', mode='bilinear'):
     im1_recons = nn.functional.grid_sample(img2, v_grid, mode=mode, padding_mode=pad, align_corners=True)
 
     return im1_recons
-
-def extract_segmentation_envelope(seg_arr):
-    return ((np.abs(np.logical_or(*np.gradient(seg_arr.astype(int),0.5))))*seg_arr).astype(bool) #TODO move to 3d manager
 
 def _get_constraints_closest_indices(constraints_indices, envelope_indices):
     neigh = NearestNeighbors(n_neighbors=1)

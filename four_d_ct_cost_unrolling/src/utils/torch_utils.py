@@ -1,6 +1,9 @@
 import torch
 import shutil
 import torch.nn.functional as F
+import os
+from pathlib import Path
+
 
 
 def weight_parameters(module):
@@ -21,10 +24,11 @@ def load_checkpoint(model_path):
     return epoch, state_dict
 
 def save_checkpoint(save_dir, states, prefix, is_best, filename='ckpt.pth.tar'):
-    file_path = save_dir / f'{prefix}_{filename}'
+    file_path = os.path.join(save_dir, f'{prefix}_{filename}')
+    Path(save_dir).mkdir(parents=True, exist_ok=True)
     torch.save(states, file_path)
     if is_best:
-        shutil.copyfile(file_path, save_dir / f'{prefix}_model_best.pth.tar')
+        shutil.copyfile(file_path, os.path.join(save_dir, f'{prefix}_model_best.pth.tar'))
 
 
 def rescale_mask_tensor(mask:torch.tensor, scale_factor:tuple):

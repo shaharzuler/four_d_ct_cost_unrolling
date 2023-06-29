@@ -9,6 +9,7 @@ import pprint
 from torch.cuda.amp import GradScaler 
 from collections import OrderedDict
 import os
+import datetime
 
 
 class BaseTrainer:
@@ -22,7 +23,7 @@ class BaseTrainer:
         self.model = model
         self.optimizer = self._get_optimizer()
         self.lowest_loss = 1E10
-        self.output_root = pathlib.Path(self.args.output_root)
+        self.output_root = f"{pathlib.Path(self.args.output_root)}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
         self.i_epoch = self.args.after_epoch+1
         self.i_iter = 0
         self.model_suffix = args.model_suffix
@@ -65,7 +66,7 @@ class BaseTrainer:
             # self._log.info('{} training samples found'.format(len(self.train_set)))
             # self._log.info('{} validation samples found'.format(len(self.valid_set)))
             if update_tensorboard:
-                self.summary_writer = SummaryWriter(os.path.join(self.args.output_root, "summary"))
+                self.summary_writer = SummaryWriter(os.path.join(self.output_root, "summary"))
         
         self.train_loader = self._get_dataloader(self.train_set)
         # self.args.epoch_size = min(self.args.epoch_size, len(self.train_loader))
@@ -151,7 +152,7 @@ class BaseTrainer:
         except:
             models = {'epoch': self.i_epoch, 'state_dict': self.model.state_dict()}
         
-        save_checkpoint(self.output_root / "checkpoints", models, name, is_best)
+        save_checkpoint(os.path.join(self.output_root , "checkpoints"), models, name, is_best)
     
 
     def _deicide_on_early_stop(self):

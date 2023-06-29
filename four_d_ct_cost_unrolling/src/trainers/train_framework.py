@@ -72,7 +72,7 @@ class TrainFramework(BaseTrainer):
         if hasattr(self.args,'dump_disp') and self.args.dump_disp:
             return self._dumpt_disp_fields()
         else:
-            if self.args.valid_type == 'synthetic': #TODO make sure it works!
+            if self.args.valid_type == 'synthetic':
                 return self.synt_validate(validation_data["synt_validate"])
             elif self.args.valid_type == 'variance_valid':
                 return self.variance_validate()
@@ -146,7 +146,7 @@ class TrainFramework(BaseTrainer):
         return error, loss
 
     @torch.no_grad()
-    def variance_validate(self):
+    def variance_validate(self): # NOT TESTED
         error_median = 0
         error_mean = 0
         error_short = 0

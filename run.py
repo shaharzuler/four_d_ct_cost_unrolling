@@ -24,11 +24,10 @@ args = {
     "w_scales": [3.0, 3.0, 3.0, 3.0, 3.0],
     "args.w_constraints_scales": [1,1,1,1,1],
     "loss": 'unflow',
-    # "epoch_size": 100,
     "plot_freq": 1,
     "load": '/home/shahar/cardio_corr/my_packages/four_d_ct_cost_unrolling_project/four_d_ct_cost_unrolling/four_d_ct_cost_unrolling/src/checkpoints/4DCT_best_w_admm_ckpt.pth.tar', #TODO make relative path after i move this args to a defaults args section
     "lr": 0.0001,
-    "output_root": "temp_outputs",
+    "output_root": "outputs_backbone_training",
     "after_epoch":0,
     "model_suffix": '4dct_costunrolling',
     "epochs": 3, #TODO 5000,
@@ -58,13 +57,13 @@ args = {
 #     )
 
 
-infer_backbone(
-    template_image_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_arr_raw.npy", 
-    unlabeled_image_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_arr_raw.npy", 
-    template_seg_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_voxels_mask_smooth.npy", 
-    unlabeled_seg_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_voxels_mask_smooth.npy", 
-    args=EasyDict(args)
-    )
+# infer_backbone(
+#     template_image_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_arr_raw.npy", 
+#     unlabeled_image_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_arr_raw.npy", 
+#     template_seg_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_voxels_mask_smooth.npy", 
+#     unlabeled_seg_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_voxels_mask_smooth.npy", 
+#     args=EasyDict(args)
+#     )
 
 
 args = {
@@ -86,16 +85,15 @@ args = {
     "w_ternary": 1,
     "alpha": 10,
     "w_scales": [3.0, 3.0, 3.0, 3.0, 3.0],
-    "args.w_constraints_scales": [1,1,1,1,1],
+    "args.w_constraints_scales": [1, 1, 1, 1, 1],
     "loss": 'unflow+2d_constraints',
-    # "epoch_size": 100,
     "plot_freq": 1,
     "load": '/home/shahar/cardio_corr/my_packages/four_d_ct_cost_unrolling_project/four_d_ct_cost_unrolling/four_d_ct_cost_unrolling/src/checkpoints/4DCT_best_w_admm_ckpt.pth.tar', #TODO make relative path after i move this args to a defaults args section
     "lr": 0.0001,
-    "output_root": "temp_outputs",
+    "output_root": "outputs_constraints_training",
     "after_epoch":0,
     "model_suffix": '4dct_costunrolling',
-    "epochs": 3, #TODO 5000,
+    "epochs": 80, #TODO 5000,
     "max_reduce_loss_delay": 10,
     "n_gpu": 2,
     "batch_size": 1,
@@ -112,14 +110,14 @@ args = {
     }
 }
 
-# overfit_w_constraints(
-#     template_image_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_arr_raw.npy", 
-#     unlabeled_image_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_arr_raw.npy", 
-#     template_seg_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_voxels_mask_smooth.npy", 
-#     unlabeled_seg_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_voxels_mask_smooth.npy", 
-#     two_d_constraints_path="/home/shahar/cardio_corr/my_packages/four_d_ct_cost_unrolling_project/ex_2d_constraints.npy",
-#     args=EasyDict(args)
-#     )
+overfit_w_constraints(
+    template_image_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_arr_raw.npy", 
+    unlabeled_image_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_arr_raw.npy", 
+    template_seg_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_voxels_mask_smooth.npy", 
+    unlabeled_seg_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_voxels_mask_smooth.npy", 
+    two_d_constraints_path="/home/shahar/cardio_corr/my_packages/four_d_ct_cost_unrolling_project/ex_2d_constraints.npy",
+    args=EasyDict(args)
+    )
 
 infer_w_constraints(
     template_image_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_arr_raw.npy", 
