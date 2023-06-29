@@ -8,7 +8,7 @@ class ConstraintsLoss(nn.modules.Module):
         super(ConstraintsLoss, self).__init__() 
         self.args = args
 
-    def forward(self, pred_flow, constraints, mask, mode='l1'): #TODO EXTRACT MODE
+    def forward(self, pred_flow, constraints, mask, mode='l1'): 
         loss = 0.0
         for flow, scale in zip(pred_flow, self.args.w_constraints_scales):
             flow = flow[:,:3,:,:,:]

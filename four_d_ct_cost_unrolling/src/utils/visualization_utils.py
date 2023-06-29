@@ -13,7 +13,6 @@ def extract_img_middle_slices(img):
     slice_z = img[:, :, k]
     return slice_x, slice_y, slice_z
 
-
 def add_mask(p_warped, template_seg_map, seg_reconst):
     slice_x_2, slice_y_2, slice_z_2 = extract_img_middle_slices(template_seg_map)
     slice_x_g, slice_y_g, slice_z_g = extract_img_middle_slices(seg_reconst)
@@ -54,8 +53,6 @@ def disp_warped_img(img1, img1_recons, img2):
     
     return np.expand_dims(img_arr,0)
 
-
-
 def extract_flow_middle_slices(flow):
     return [extract_img_middle_slices(flow[i,:,:,:]) for i in range(3)]
     
@@ -77,8 +74,9 @@ def disp_training_fig(img1, img2, flow):
     slices_2 = [np.tile(slice,(3, 1, 1)) for slice in [slice_x_2, slice_y_2, slice_z_2]]
     flows12  = [np.transpose(slice,(2, 0, 1)) for slice in [slice_x_flow_col, slice_y_flow_col, slice_z_flow_col]]
 
-    slice_imgs = [np.concatenate([slice_1*255.,slice_2*255.,slice_flow.astype(np.float32)], axis=1) for slice_1, slice_2, slice_flow in zip(slices_1, slices_2, flows12)]
-    return np.round(np.concatenate(slice_imgs,axis=2)[None,::])
+    slice_imgs = [np.concatenate([slice_1, slice_2, slice_flow.astype(np.float32)/255], axis=1) for slice_1, slice_2, slice_flow in zip(slices_1, slices_2, flows12)]
+
+    return np.concatenate(slice_imgs,axis=2)[None,::]
 
 def get_2d_flow_sections(flow:np.array) -> np.array:
     slices_of_x_flow, slices_of_y_flow, slices_of_z_flow = extract_flow_middle_slices(flow)
@@ -138,6 +136,6 @@ def disp_flow_as_arrows(img:np.array, seg:np.array, flow:np.array, text:str=None
 
     all_flow_arrowed_disp = np.concatenate([slice_x_w_arrows, slice_y_w_arrows, slice_z_w_arrows], axis=1)
     if text is not None:
-        all_flow_arrowed_disp=cv2.putText(all_flow_arrowed_disp, text, org=(10,20), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.5, color=(1.,0,0))
+        all_flow_arrowed_disp = cv2.putText(all_flow_arrowed_disp, text, org=(10,20), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.7, color=(1.,0,0), thickness=2)
     all_flow_arrowed_disp = np.expand_dims(np.transpose(all_flow_arrowed_disp, (2,0,1)), 0)
     return all_flow_arrowed_disp

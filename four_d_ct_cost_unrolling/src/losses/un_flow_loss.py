@@ -54,7 +54,6 @@ class UnFlowLoss(nn.modules.Module):
         pyramid_warp_losses = []
         pyramid_smooth_losses = []
 
-        s = 1.
         for i, flow in enumerate(pyramid_flows):
             # log(f'Aggregating loss of pyramid level {i+1}')
             N, C, H, W, D = flow.size()
@@ -64,10 +63,7 @@ class UnFlowLoss(nn.modules.Module):
             flow12 = flow[:, :3]
             img1_recons = flow_warp(img2_scaled, flow12)
 
-            if i == 0:
-                s = min(H, W, D)
-
-            loss_smooth = self.loss_smooth(flow=flow12 / s, img1_scaled=img1_recons, vox_dim=vox_dim) #TODO what is the s for?? 
+            loss_smooth = self.loss_smooth(flow=flow12, img1_scaled=img1_recons, vox_dim=vox_dim)
             loss_photometric = self.loss_photometric(img1_scaled, img1_recons)
             # log(f'Computed losses for level {i+1}: loss_warp={loss_photometric}, loss_smoth={loss_smooth}')
             pyramid_smooth_losses.append(loss_smooth)

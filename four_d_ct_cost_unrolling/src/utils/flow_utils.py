@@ -57,7 +57,6 @@ def attach_flow_between_segs(constraints_arr:np.array, seg_arr:np.array) -> np.a
     Takes 2d constraints based on one segmentation map (for example a smooth seg map),
     and moves it to each index closest neighbour on the second segmentation map.
     """
-    #TODO validate visually!
     envelope = extract_segmentation_envelope(seg_arr)
     constraints_indices = np.array([*np.where(constraints_arr[:,:,:,0] != np.nan)]).T # shape N1,3
     envelope_indices = np.array([*np.where(envelope)]).T # shape N2,3
