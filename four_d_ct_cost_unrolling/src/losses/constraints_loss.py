@@ -1,4 +1,5 @@
 import torch.nn as nn
+import torch
 
 from ..utils.flow_utils import rescale_flow_tensor
 from ..utils.torch_utils import rescale_mask_tensor
@@ -8,7 +9,7 @@ class ConstraintsLoss(nn.modules.Module):
         super(ConstraintsLoss, self).__init__() 
         self.args = args
 
-    def forward(self, pred_flow, constraints, mask, mode='l1'): 
+    def forward(self, pred_flow:list[torch.tensor], constraints:torch.tensor, mask:torch.tensor, mode:str='l1') -> torch.tensor: 
         loss = 0.0
         for flow, scale in zip(pred_flow, self.args.w_constraints_scales):
             flow = flow[:,:3,:,:,:]

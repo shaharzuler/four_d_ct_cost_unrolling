@@ -1,16 +1,15 @@
-from .pwc_blocks import FeatureExtractor, Correlation, FlowEstimatorReduce, ContextNetwork, conv
+import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ..utils.flow_utils import flow_warp
-# from utils.misc import log
+
+from .pwc_blocks import FeatureExtractor, Correlation, FlowEstimatorReduce, ContextNetwork, conv
 from .admm.admm import ADMMSolverBlock, MaskGenerator
-import math
-import numpy as np
-from ..utils.flow_utils import rescale_flow_tensor
+from ..utils.flow_utils import rescale_flow_tensor, flow_warp
 
 class PWC3D(nn.Module):
-    def __init__(self, args, upsample=True, search_range=4): 
+    def __init__(self, args:dict, upsample:bool=True, search_range:int=4): 
         super(PWC3D, self).__init__()
         self.search_range = search_range
         self.num_chs = [1, 16, 32, 64, 96, 128, 192]
@@ -50,18 +49,16 @@ class PWC3D(nn.Module):
 
     def init_weights(self, layer):
         if isinstance(layer, nn.Conv3d):
-            log(f'Visit nn.Conv3d')
             nn.init.kaiming_normal_(layer.weight)
             if layer.bias is not None:
                 nn.init.constant_(layer.bias, 0)
 
         elif isinstance(layer, nn.ConvTranspose3d):
-            log(f'Visit nn.ConvTranspose3d')
             nn.init.kaiming_normal_(layer.weight)
             if layer.bias is not None:
                 nn.init.constant_(layer.bias, 0)
 
-    def forward(self, data, w_bk=True):
+    def forward(self, data:dict[str,torch.tensor], w_bk:bool=True) -> dict[str,torch.tensor]:
         x1, x2, vox_dim = data["img1"], data["img2"], data["vox_dim"]
         self._calculate_pyramid_reduction(x1)
         x1_p = self.feature_pyramid_extractor(x1) + [x1] 
@@ -94,16 +91,12 @@ class PWC3D(nn.Module):
             }
         
         N, C, H, W, D = x1_p[0].size()
-        # log(f'Got batch of size {N}')
         init_dtype = x1_p[0].dtype 
         init_device = x1_p[0].device
         flow12 = torch.zeros(N, 3, H, W, D, dtype=init_dtype, device=init_device).float()
 
-        # log(flow12.size()) 
-        # log(f'forward init complete')
 
         for l, (_x1, _x2) in enumerate(zip(x1_p, x2_p)):
-            # log(f'Level {l + 1} flow...')
             # warping
             if l == 0:
                 x2_warp = _x2
@@ -117,17 +110,11 @@ class PWC3D(nn.Module):
 
             # concat and estimate flow
             x1_1by1 = self.conv_1x1[l+self.num_levels_to_reduce_from_pyramid](_x1) 
-            # log(f'Sizes - x1={_x1.size()}, x2={_x2.size()}, x1_1b1y={x1_1by1.size()}, out_corr_relu = {out_corr_relu.size()}, flow={flow12.size()}')
 
             x_intm, flow_res = self.flow_estimators(torch.cat([out_corr_relu, x1_1by1, flow12], dim=1)) 
             
             flow12 = flow12 + flow_res
-            # log(f'Completed flow estimation')
-
-            # log(f'Sizes - x_intm={x_intm.size()}, flow = {flow12.size()}')
             flow_fine = self.context_networks(torch.cat([x_intm, flow12], dim=1))
-            # log(f'Completed forward of context_networks')
-            # log(f'Sizes - flow={flow12.size()}, flow_fine={flow_fine.size()}')
             flow12 = flow12 + flow_fine
             flows.append(flow12)
             
@@ -139,10 +126,7 @@ class PWC3D(nn.Module):
                 aux_vars["betas"].append(Betas)
 
             if l == self.output_level-self.num_levels_to_reduce_from_pyramid:
-                # log(f'Broke flow construction at level {l+1}')
                 break
-
-            # log(f'Ended iteration of flows')
 
         if self.upsample:
             flows = [F.interpolate(flow * 4, scale_factor=4, mode='trilinear') for flow in flows]

@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-# from utils.misc import log
 
 
 def conv(in_planes, out_planes, kernel_size=3, stride=1, dilation=1, isReLU=True):
@@ -53,18 +52,13 @@ class Correlation(nn.Module):
     def forward(self, x1: torch.Tensor, x2: torch.Tensor):
         N, C, H, W, D = x1.size()
 
-        # log(x1.size(), x2.size())
         x2 = F.pad(x2, [self.pad_size] * 6)  # 6 because of 3D
-        # log(x2.size())
         cv = []
         iter = 0
-        # log(f'output_dim={self.output_dim}')
         for i in range(self.output_dim):
             for j in range(self.output_dim):
                 for k in range(self.output_dim):
-                    # log(iter)
                     iter += 1
-                    # log(x2[:, :, i:(i + H), j:(j + W), k:(k + D)].size())
                     cost = x1 * x2[:, :, i:(i + H), j:(j + W), k:(k + D)]
                     cost = torch.mean(cost, 1, keepdim=True)
                     cv.append(cost)

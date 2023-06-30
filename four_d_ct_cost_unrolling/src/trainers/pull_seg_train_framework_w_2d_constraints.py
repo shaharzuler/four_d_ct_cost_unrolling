@@ -1,49 +1,44 @@
-import torch
 import numpy as np
-from flow_vis import flow_to_color
-import cv2
+import torch
+from torch.utils.data import Dataset
 
-from ..utils.metrics_utils import AverageMeter
 from .pull_seg_train_framework import PullSegmentationMapTrainFramework
-from ..utils.os_utils import torch_to_np
-
+from ..utils.torch_utils import torch_to_np
 from ..utils.visualization_utils import disp_flow_as_arrows
-
+from ..utils.metrics_utils import AverageMeter
 
 
 class PullSegmentationMapTrainFrameworkWith2dConstraints(PullSegmentationMapTrainFramework):
-    def __init__(self, train_loader, model, loss_func, args) -> None:
+    def __init__(self, train_loader:Dataset, model:torch.nn.Module, loss_func:dict[str,torch.nn.modules.Module], args:dict) -> None:
         super().__init__(train_loader, model, loss_func, args)
     
-    def _prepare_data(self, d):
+    def _prepare_data(self, d:dict) -> dict:
         data = super()._prepare_data(d)
         data["two_d_constraints"] = d["two_d_constraints"]
         data["two_d_constraints_with_nans"]= d["two_d_constraints_with_nans"]
         data["two_d_constraints_mask"] = torch.unsqueeze(d["two_d_constraints_mask"], 1)
         return data
 
-    def _init_key_meters(self):
+    def _init_key_meters(self) -> tuple[list,AverageMeter]:
         key_meter_names = ['Loss', 'l_ph', 'l_sm', "flow_mean", "l_constraints"]
         key_meters = AverageMeter(i=len(key_meter_names), print_precision=4, names=key_meter_names)
         return key_meter_names, key_meters
 
-    def _compute_loss_terms(self, img1, img2, vox_dim, flows, aux, data, __): 
-        loss, (l_ph, l_sm, flow_mean) = super()._compute_loss_terms(img1, img2, vox_dim,flows, aux, None,None)
+    def _compute_loss_terms(self, img1:torch.tensor, img2:torch.tensor, vox_dim:torch.tensor, flows:list[torch.tensor], aux:tuple, data:dict, __:any) -> tuple[torch.tensor,tuple[torch.tensor]]: 
+        loss, (l_ph, l_sm, flow_mean) = super()._compute_loss_terms(img1, img2, vox_dim, flows, aux, None, None)
         l_constraints = self._get_constraints_loss(flows, data)
         loss += l_constraints
 
         return loss, (l_ph, l_sm, flow_mean, l_constraints)
 
-    def _get_constraints_loss(self, flows, data):
-        if "two_d_constraints" in data.keys():
-            mask = ~torch.isnan(data["two_d_constraints_with_nans"])[:,:1,:,:,:]
+    def _get_constraints_loss(self, flows:list[torch.tensor], data:dict[str,torch.tensor]) -> torch.tensor:
         l_constraints = 0.0
         for loss_, module_ in self.loss_modules.items():
             if "constraints" in loss_:
                 l_constraints = module_(flows, data["two_d_constraints"].to(flows[0].device), data['two_d_constraints_mask'].to(flows[0].device))
         return l_constraints
 
-    def _add_flow_arrows_on_mask_contours_to_tensorboard(self, data, pred_flow, res_dict): 
+    def _add_flow_arrows_on_mask_contours_to_tensorboard(self, data:dict[str,torch.tensor], pred_flow:np.array, res_dict:dict[str,torch.tensor]) -> None: 
         img1 = torch_to_np(data["template_image"][0])
         seg = torch_to_np(data["template_seg"][0])
         all_flow_arrowed_before_constraints_disp = disp_flow_as_arrows(img1, seg, torch_to_np(res_dict['unconstrained_flows_fw'][0][0][0]), text="before_constraints")

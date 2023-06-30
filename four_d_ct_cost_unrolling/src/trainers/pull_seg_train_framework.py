@@ -1,24 +1,25 @@
-import numpy as np
-from scipy.ndimage.interpolation import zoom as zoom
-import torch
 import time
-import scipy
-import nrrd
 import os
 from pathlib import Path
+
+import torch
+from torch.utils.data import Dataset
+import numpy as np
+import nrrd
+import scipy
+from scipy.ndimage.interpolation import zoom as zoom
 
 from .train_framework import TrainFramework
 from ..utils.visualization_utils import disp_warped_img, disp_training_fig, add_mask, disp_flow_as_arrows
 from ..utils.flow_utils import flow_warp
-from ..utils.os_utils import torch_to_np
+from ..utils.torch_utils import torch_to_np
 
 
 class PullSegmentationMapTrainFramework(TrainFramework):
-    def __init__(self, train_loader, model, loss_func, args) -> None:
-        super().__init__(train_loader, model, loss_func, args)
+    def __init__(self, train_loader:Dataset, model:torch.nn.Module, loss_func:dict[str,torch.nn.modules.Module], args:dict) -> None:
+        super().__init__(train_loader, model, loss_func, args) 
         self.reduce_loss_delay : int = 0
         self.max_reduce_loss_delay : int = args.max_reduce_loss_delay
-        
         self.inference_args = args.inference_args
 
     def _run_one_epoch(self) -> bool:
@@ -57,7 +58,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
 
     
 
-    def _visualize(self, data:dict, pred_flow:torch.tensor, res_dict:dict=None): 
+    def _visualize(self, data:dict, pred_flow:torch.tensor, res_dict:dict=None) -> None: 
         self._add_orig_images_to_tensorboard(data, pred_flow)
         img1_recons_disp = self._add_warped_image_to_tensorboard(data, pred_flow)
         self._add_warped_seg_mask_to_tensorboard(data, pred_flow, img1_recons_disp)
@@ -82,11 +83,11 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         
         return img1_recons_disp
 
-    def _add_orig_images_to_tensorboard(self, data, pred_flow):
+    def _add_orig_images_to_tensorboard(self, data:dict[str:torch.tensor], pred_flow:torch.tensor) -> None:
         imgs_disp = disp_training_fig(torch_to_np(data["template_image"][0]), torch_to_np(data["unlabeled_image"][0]), torch_to_np(pred_flow[0]))
         self.summary_writer.add_images(f'original_images', imgs_disp, self.i_epoch, dataformats='NCHW')
 
-    def infer(self, rank, world_size, save_mask=True):
+    def infer(self, rank:int, world_size:int, save_mask:bool=True):
         self._init_rank(rank, world_size, update_tensorboard=False)
         self.model.eval()
         for data in self.train_loader:
@@ -101,7 +102,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
             if save_mask:
                 self.warp_and_save_mask(data, flow_tensor) 
 
-    def warp_and_save_mask(self, data, flow, save_nrrd=False): 
+    def warp_and_save_mask(self, data:dict[str,torch.tensor], flow:torch.tensor, save_nrrd:bool=False) -> None: 
         template_seg_map = data["template_seg"] 
         seg_reconst = flow_warp(template_seg_map.unsqueeze(0).float(), flow.cpu(), mode="nearest")
         seg_reconst = torch_to_np(seg_reconst)[0,0,:,:,:].astype(bool)

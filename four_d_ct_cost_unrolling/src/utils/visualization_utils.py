@@ -6,14 +6,14 @@ import os
 import cv2
 
 
-def extract_img_middle_slices(img):
+def extract_img_middle_slices(img:np.array) -> tuple[np.array]:
     i, j, k = np.array(img.shape) // 2
     slice_x = img[i, :, :]
     slice_y = img[:, j, :]
     slice_z = img[:, :, k]
     return slice_x, slice_y, slice_z
 
-def add_mask(p_warped, template_seg_map, seg_reconst):
+def add_mask(p_warped:np.array, template_seg_map:np.array, seg_reconst:np.array) -> np.array:
     slice_x_2, slice_y_2, slice_z_2 = extract_img_middle_slices(template_seg_map)
     slice_x_g, slice_y_g, slice_z_g = extract_img_middle_slices(seg_reconst)
 
@@ -28,7 +28,7 @@ def add_mask(p_warped, template_seg_map, seg_reconst):
 
     return np.expand_dims(p_warped_cropped, 0)
 
-def disp_warped_img(img1, img1_recons, img2):    
+def disp_warped_img(img1:np.array, img1_recons:np.array, img2:np.array) -> np.array:    
     slice_x_r, slice_y_r, slice_z_r = extract_img_middle_slices(img1)
     slice_x_g, slice_y_g, slice_z_g = extract_img_middle_slices(img1_recons)
     slice_x_b, slice_y_b, slice_z_b = (slice_x_r + slice_x_g)/2, (slice_y_r+slice_y_g)/2, (slice_z_r+slice_z_g)/2
@@ -51,12 +51,12 @@ def disp_warped_img(img1, img1_recons, img2):
 
     img_arr = np.concatenate([img_row, img2_row, img_recons_row, colored_error_row], axis=0)
     
-    return np.expand_dims(img_arr,0)
+    return np.expand_dims(img_arr, 0)
 
-def extract_flow_middle_slices(flow):
+def extract_flow_middle_slices(flow:np.array) -> list[tuple[np.array]]:
     return [extract_img_middle_slices(flow[i,:,:,:]) for i in range(3)]
     
-def disp_training_fig(img1, img2, flow):
+def disp_training_fig(img1:np.array, img2:np.array, flow:np.array) -> np.array:
     slice_x_1, slice_y_1, slice_z_1 = extract_img_middle_slices(img1)
     slice_x_2, slice_y_2, slice_z_2 = extract_img_middle_slices(img2)
 
@@ -78,7 +78,7 @@ def disp_training_fig(img1, img2, flow):
 
     return np.concatenate(slice_imgs,axis=2)[None,::]
 
-def get_2d_flow_sections(flow:np.array) -> np.array:
+def get_2d_flow_sections(flow:np.array) -> tuple[np.array]:
     slices_of_x_flow, slices_of_y_flow, slices_of_z_flow = extract_flow_middle_slices(flow)
     slice_x_flow = np.stack((slices_of_y_flow[0], slices_of_z_flow[0]))
     slice_y_flow = np.stack((slices_of_x_flow[1], slices_of_z_flow[1]))
@@ -92,26 +92,26 @@ def write_flow_as_nrrd(flow, folderpath='.', filename="flow.nrrd"):
     nrrd.write(os.path.join(folderpath,"y"+filename), flow[1,:,:,:])
     nrrd.write(os.path.join(folderpath,"z"+filename), flow[2,:,:,:])
 
-def _get_most_contours_from_hirarchies(contours):
+def _get_most_contours_from_hirarchies(contours:tuple) -> np.array:
     most_contours = np.zeros([0])
     for contours_level in contours:
         if contours_level.shape[0] > most_contours.shape[0]:
             most_contours = contours_level
     return most_contours
 
-def get_mask_contours(mask:np.array, downsample_factor:int=2):
+def get_mask_contours(mask:np.array, downsample_factor:int=2) -> np.array:
     contours, hierarchy = cv2.findContours(image=mask.astype(np.uint8), mode=cv2.RETR_EXTERNAL, method=cv2.CHAIN_APPROX_SIMPLE)
     contours = _get_most_contours_from_hirarchies(contours)
     contours = contours[::downsample_factor,:,:]
     return contours
 
-def _add_flow_contour_arrows(image:np.array, contours:np.array, slice_flow:np.array, arrow_scale_factor:int=5, equal_arrow_length:bool=False):
+def _add_flow_contour_arrows(image:np.array, contours:np.array, slice_flow:np.array, arrow_scale_factor:int=5, equal_arrow_length:bool=False) -> np.array:
     for contour in contours:
         start, end = _get_arrow_start_end_coords(contour, slice_flow, arrow_scale_factor, equal_arrow_length)
         image = cv2.arrowedLine(image,(start[0],start[1]),(end[0],end[1]),color=(0,0,0),thickness=1)
     return image
 
-def _get_arrow_start_end_coords(contour, slice_flow, arrow_scale_factor, equal_arrow_length):
+def _get_arrow_start_end_coords(contour:np.array, slice_flow:np.array, arrow_scale_factor:int, equal_arrow_length:bool):
     start = contour[0]
     delta = slice_flow[:, contour[0,1], contour[0,0]]
     if equal_arrow_length:
@@ -119,7 +119,7 @@ def _get_arrow_start_end_coords(contour, slice_flow, arrow_scale_factor, equal_a
     end = np.round(start+delta*arrow_scale_factor).astype(start.dtype)
     return start, end
 
-def _add_arrows_from_mask_on_2d_img(img_slice, mask_slice, flow_slice):
+def _add_arrows_from_mask_on_2d_img(img_slice:np.array, mask_slice:np.array, flow_slice:np.array) -> np.array:
     contours = get_mask_contours(mask_slice)        
     img_slice_w_arrows = _add_flow_contour_arrows(img_slice, contours, flow_slice)
     return img_slice_w_arrows

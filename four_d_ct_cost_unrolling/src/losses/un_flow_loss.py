@@ -1,12 +1,9 @@
-from .flow_loss import TernaryLoss, smooth_grad_1st, SSIM
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from .flow_loss import TernaryLoss, smooth_grad_1st, SSIM
 from ..utils.flow_utils import flow_warp
-# from utils.misc import log
-
-
-
 
 
 class UnFlowLoss(nn.modules.Module):
@@ -22,7 +19,7 @@ class UnFlowLoss(nn.modules.Module):
 
         return self.args.w_admm * self.args.admm_rho / 2 * sum([l.mean() for l in loss])
 
-    def loss_photometric(self, img1_scaled, img1_recons):
+    def loss_photometric(self, img1_scaled:torch.tensor, img1_recons:torch.tensor) -> torch.tensor:
         loss = []
 
         if self.args.w_l1 > 0:
@@ -39,14 +36,13 @@ class UnFlowLoss(nn.modules.Module):
 
         return sum([l.mean() for l in loss])
 
-    def loss_smooth(self, flow, img1_scaled, vox_dim):
+    def loss_smooth(self, flow:torch.tensor, vox_dim:torch.tensor) -> torch.tensor:
         func_smooth = smooth_grad_1st
         loss = []
-        loss += [func_smooth(flow, img1_scaled, vox_dim, self.args.alpha)]
+        loss += [func_smooth(flow, vox_dim)]
         return sum([l.mean() for l in loss])
 
-    def forward(self, output, img1, img2, aux, vox_dim):
-        # log("Computing loss")
+    def forward(self, output:list, img1:torch.tensor, img2:torch.tensor, aux:tuple, vox_dim:torch.tensor) -> tuple[torch.tensor]:
         vox_dim = vox_dim.squeeze(0)
 
         pyramid_flows = output
@@ -55,17 +51,14 @@ class UnFlowLoss(nn.modules.Module):
         pyramid_smooth_losses = []
 
         for i, flow in enumerate(pyramid_flows):
-            # log(f'Aggregating loss of pyramid level {i+1}')
             N, C, H, W, D = flow.size()
             img1_scaled = F.interpolate(img1, (H, W, D), mode='area')
-            # Only needed if we aggregate flow21 and dowing backward computation
             img2_scaled = F.interpolate(img2, (H, W, D), mode='area')
             flow12 = flow[:, :3]
             img1_recons = flow_warp(img2_scaled, flow12)
 
-            loss_smooth = self.loss_smooth(flow=flow12, img1_scaled=img1_recons, vox_dim=vox_dim)
+            loss_smooth = self.loss_smooth(flow=flow12, vox_dim=vox_dim)
             loss_photometric = self.loss_photometric(img1_scaled, img1_recons)
-            # log(f'Computed losses for level {i+1}: loss_warp={loss_photometric}, loss_smoth={loss_smooth}')
             pyramid_smooth_losses.append(loss_smooth)
             pyramid_warp_losses.append(loss_photometric)
 

@@ -1,8 +1,9 @@
-from .un_flow_loss import UnFlowLoss
-from .constraints_loss import ConstraintsLoss
 import torch.nn as nn
 
-def get_loss(args:dict) -> nn.modules.Module:
+from .un_flow_loss import UnFlowLoss
+from .constraints_loss import ConstraintsLoss
+
+def get_loss(args:dict) -> dict[str,nn.modules.Module]:
     if "unflow" in args.loss:
         losses = {"loss_module" : UnFlowLoss(args)}
 

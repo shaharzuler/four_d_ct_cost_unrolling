@@ -1,26 +1,23 @@
-from .base_trainer import BaseTrainer
-# from utils.misc import log
-from ..utils.visualization_utils import  disp_warped_img, disp_training_fig
-from ..utils.flow_utils import flow_warp
-import numpy as np
+import time
+
 from scipy.ndimage.interpolation import zoom as zoom
 import torch
-import time
-from PIL import Image
+from torch.utils.data import Dataset
+
+from .base_trainer import BaseTrainer
+from ..utils.flow_utils import flow_warp
 from ..utils.metrics_utils import AverageMeter
 
 
-
-# from torch.cuda.amp import autocast 
 class TrainFramework(BaseTrainer):
-    def __init__(self, train_loader, model, loss_func, args):
+    def __init__(self, train_loader:Dataset, model:torch.nn.Module, loss_func:dict[str,torch.nn.modules.Module], args:dict):
         super(TrainFramework, self).__init__(train_loader, model, loss_func, args)
 
-    def _compute_loss_terms(self, img1, img2, vox_dim, flows, aux, _, __):
+    def _compute_loss_terms(self, img1:torch.tensor, img2:torch.tensor, vox_dim:torch.tensor, flows:list[torch.tensor], aux:tuple, _:any, __:any) -> tuple[torch.tensor,tuple[torch.tensor]]: 
         loss, l_ph, l_sm, flow_mean = self.loss_modules['loss_module'](flows, img1, img2, aux, vox_dim)
         return loss, (l_ph, l_sm, flow_mean)
 
-    def _post_process_model_output(self, res_dict):
+    def _post_process_model_output(self, res_dict:dict[str,torch.tensor]) -> tuple[list[torch.tensor],tuple]:
         flows12, flows21 = res_dict['flows_fw'][0], res_dict['flows_bk'][0]
         aux12, aux21 = res_dict['flows_fw'][1], res_dict['flows_bk'][1]
             
@@ -28,19 +25,19 @@ class TrainFramework(BaseTrainer):
         aux = (aux12, aux21)
         return flows, aux
 
-    def update_to_tensorboard(self, key_meter_names, key_meters):
+    def update_to_tensorboard(self, key_meter_names:list[str], key_meters:AverageMeter) -> None:
         if self.rank ==0 and self.i_iter % self.args.record_freq == 0:
             for v, name in zip(key_meters.val, key_meter_names):
                 self.summary_writer.add_scalar('Train_' + name, v, self.i_iter)
 
-    def _optimize(self, loss):
+    def _optimize(self, loss:torch.tensor) -> None:
         loss = loss.mean()
         self.optimizer.zero_grad()
         self.scaler.scale(loss).backward()
         self.scaler.step(self.optimizer)
         self.scaler.update()
         
-    def _init_epoch(self):
+    def _init_epoch(self) -> tuple[AverageMeter,AverageMeter,list,AverageMeter,float]:
         avg_meter_batch_time = AverageMeter()
         avg_meter_data_time = AverageMeter()
         self.model.train()
@@ -49,12 +46,12 @@ class TrainFramework(BaseTrainer):
         end = time.time()
         return avg_meter_batch_time, avg_meter_data_time, key_meter_names, key_meters, end
 
-    def _init_key_meters(self):
+    def _init_key_meters(self) -> tuple[list, AverageMeter]:
         key_meter_names = ['Loss', 'l_ph', 'l_sm', "flow_mean"]
         key_meters = AverageMeter(i=len(key_meter_names), print_precision=4, names=key_meter_names)
-        return key_meter_names,key_meters
+        return key_meter_names, key_meters
 
-    def _prepare_data(self, data):
+    def _prepare_data(self, data:dict) -> dict:
         img1, img2 = [im.unsqueeze(0).float().to(self.rank) for im in [data["template_image"], data["unlabeled_image"]]]
         vox_dim = torch.tensor([[1,1,1.]], dtype=torch.float64).to(self.rank)
         
@@ -68,7 +65,6 @@ class TrainFramework(BaseTrainer):
             
     @torch.no_grad()
     def _validate(self, validation_data:dict):
-        # self._log.info(f'Running validation on rank {self.rank}..')
         if hasattr(self.args,'dump_disp') and self.args.dump_disp:
             return self._dumpt_disp_fields()
         else:
@@ -99,16 +95,10 @@ class TrainFramework(BaseTrainer):
             img2 = img2.unsqueeze(1).float().to(self.device)  # Add channel dimension
 
             output = self.model(img1, img2, vox_dim=vox_dim)
-
-            # log(f'flow_size = {output[0].size()}')
-            # log(f'flow_size = {output[0].shape}')
-
             flow12_net = output[0].squeeze(0).float().to(self.device)  # Remove batch dimension, net prediction
             epe_map = torch.sqrt(torch.sum(torch.square(flow12 - flow12_net), dim=0)).to(self.device).mean()
             # epe_map = torch.abs(flow12 - flow12_net).to(self.device).mean()
             error += float(epe_map.mean().item())
-            # log(error)
-
             _loss, l_ph, l_sm = self.loss_func(output, img1, img2, vox_dim)
             loss += float(_loss.mean().item())
 
@@ -193,7 +183,6 @@ class TrainFramework(BaseTrainer):
                 box_variance = variance[49:148, 49:148, 16:48]
                 error_short_box += float(box_variance.mean().item())
 
-                log(error_short)
             if count == self.args.frame_dif+1:
                 # calculating variance based only on model
                 res = self.model(image0, img2, vox_dim=vox_dim, w_bk=False)[
@@ -223,7 +212,6 @@ class TrainFramework(BaseTrainer):
                 box_variance = variance[49:148, 49:148, 16:48]
                 error_mean_box += float(box_variance.mean().item())
                 error_median_box += float(box_variance.median().item())
-                log(error_mean)
                 flows = torch.zeros([3, im_h, im_w, im_d], device=self.device)
                 count = 0
 

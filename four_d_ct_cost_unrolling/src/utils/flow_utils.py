@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 from three_d_data_manager import extract_segmentation_envelope
 
-def _mesh_grid(B, H, W, D):
+def _mesh_grid(B:int, H:int, W:int, D:int) -> torch.tensor:
     # batches not implented
     x = torch.arange(H)
     y = torch.arange(W)
@@ -16,7 +16,7 @@ def _mesh_grid(B, H, W, D):
     mesh = mesh.unsqueeze(0)
     return mesh.repeat([B,1,1,1,1])
 
-def _norm_grid(v_grid):
+def _norm_grid(v_grid:torch.tensor) -> torch.tensor:
     _, _, H, W, D = v_grid.size()
 
     # scale grid to [-1,1]
@@ -26,7 +26,7 @@ def _norm_grid(v_grid):
     v_grid_norm[:, 2, :, :] = 2.0 * v_grid[:, 2, :, :] / (H - 1) - 1.0
     return v_grid_norm.permute(0, 2, 3, 4, 1)
 
-def flow_warp(img2, flow12, pad='border', mode='bilinear'):
+def flow_warp(img2:torch.tensor, flow12:torch.tensor, pad:str='border', mode:str='bilinear') -> torch.tensor:
     assert (img2.shape[-3:] == flow12.shape[-3:])
     B, _, H, W, D = flow12.size()
     flow12 = torch.flip(flow12, [1])
@@ -37,14 +37,14 @@ def flow_warp(img2, flow12, pad='border', mode='bilinear'):
 
     return im1_recons
 
-def _get_constraints_closest_indices(constraints_indices, envelope_indices):
+def _get_constraints_closest_indices(constraints_indices:np.array, envelope_indices:np.array) -> np.array:
     neigh = NearestNeighbors(n_neighbors=1)
     neigh.fit(constraints_indices)
     nn_ind = neigh.kneighbors(envelope_indices, return_distance=False) # shape (N2, 1)
     closest_constraints_indices = constraints_indices[nn_ind][:,0,:] # shape (N2, 3)
     return closest_constraints_indices
 
-def _restore_constraints(constraints_arr, envelope_indices, closest_constraints_indices):
+def _restore_constraints(constraints_arr:np.array, envelope_indices:np.array, closest_constraints_indices:np.array) -> np.array:
     restored_constraints_arr = np.empty(constraints_arr.shape)
     restored_constraints_arr[:] = np.nan
     for axis in range(3):
