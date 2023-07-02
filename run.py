@@ -6,9 +6,9 @@ from four_d_ct_cost_unrolling import get_default_backbone_config, get_default_w_
 
 
 args = get_default_backbone_config()
-args["save_iter"] = 3
+args["save_iter"] = 2
 args["inference_args"]["inference_flow_median_filter_size"] = False
-args["epochs"] = 5
+args["epochs"] = 3
 
 backbone_model_output_path = overfit_backbone(
     template_image_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_arr_raw.npy", 
@@ -32,10 +32,11 @@ backbone_inference_output_path = infer_backbone(
 
 
 args = get_default_w_constraints_config()
-args["save_iter"] = 3
+args["save_iter"] = 2
 args["inference_args"]["inference_flow_median_filter_size"] = False
-args["epochs"] = 5
+args["epochs"] = 3
 args["load"] = get_checkpoints_path(backbone_model_output_path)
+
 
 constraints_model_output_path = overfit_w_constraints(
     template_image_path="/home/shahar/data/cardiac_3d_data/18/orig/voxels/xyz_arr_raw.npy", 

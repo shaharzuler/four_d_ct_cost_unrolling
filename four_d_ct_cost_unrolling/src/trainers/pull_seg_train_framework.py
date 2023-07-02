@@ -62,7 +62,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         self._add_warped_seg_mask_to_tensorboard(data, pred_flow, img1_recons_disp)
         self._add_flow_arrows_on_mask_contours_to_tensorboard(data, torch_to_np(pred_flow[0]), res_dict)
 
-    def _add_flow_arrows_on_mask_contours_to_tensorboard(self, data, pred_flow, _):
+    def _add_flow_arrows_on_mask_contours_to_tensorboard(self, data, pred_flow, _) -> None:
         img1 = torch_to_np(data["template_image"][0])
         seg = torch_to_np(data["template_seg"][0])
         all_flow_arrowed_disp = disp_flow_as_arrows(img1, seg, pred_flow)
@@ -85,8 +85,8 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         imgs_disp = disp_training_fig(torch_to_np(data["template_image"][0]), torch_to_np(data["unlabeled_image"][0]), torch_to_np(pred_flow[0]))
         self.summary_writer.add_images(f'original_images', imgs_disp, self.i_epoch, dataformats='NCHW')
 
-    def infer(self, rank:int, world_size:int, save_mask:bool=True) -> str:
-        self._init_rank(rank, world_size, update_tensorboard=False)
+    def infer(self, rank:int, save_mask:bool=True) -> str:
+        self._init_rank(rank, update_tensorboard=False)
         self.model.eval()
         for data in self.train_loader:
             prepared_data = self._prepare_data(data)

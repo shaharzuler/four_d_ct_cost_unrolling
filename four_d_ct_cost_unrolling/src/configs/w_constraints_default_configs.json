@@ -35,6 +35,7 @@
     "valid_type": "basic",
     "save_iter": 50,
     "w_constraints_scales": [1.0, 1.0, 1.0, 1.0, 1.0],
+    "cuda_device": 0,
     "inference_args": {
         "inference_flow_median_filter_size": 7, 
         "template_timestep": 18,

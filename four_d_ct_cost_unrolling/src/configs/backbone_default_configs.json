@@ -33,6 +33,7 @@
     "record_freq": 1,
     "valid_type": "basic",
     "save_iter": 50,
+    "cuda_device": 0,
     "inference_args": {
         "inference_flow_median_filter_size": 7, 
         "template_timestep": 18,

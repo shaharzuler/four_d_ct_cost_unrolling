@@ -36,8 +36,8 @@ class BaseTrainer:
             f.write(json.dumps(args, indent=4))
 
 
-    def train(self, rank:int, world_size:int) -> str:
-        self._init_rank(rank, world_size)
+    def train(self, rank:int) -> str:
+        self._init_rank(rank)
         
         for epoch in range(self.args.epochs):
             break_ = self._run_one_epoch()
@@ -58,13 +58,11 @@ class BaseTrainer:
     def _validate(self):
         ...
 
-    def _init_rank(self, rank:int, world_size:int, update_tensorboard:bool=True) -> None:
-        self.world_size = world_size
+    def _init_rank(self, rank:int, update_tensorboard:bool=True) -> None:
         self.rank = rank
 
-        if self.rank == 0:
-            if update_tensorboard:
-                self.summary_writer = SummaryWriter(os.path.join(self.output_root, "summary"))
+        if update_tensorboard:
+            self.summary_writer = SummaryWriter(os.path.join(self.output_root, "summary"))
         
         self.train_loader = self._get_dataloader(self.train_set)
 

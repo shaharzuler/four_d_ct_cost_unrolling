@@ -1,41 +1,16 @@
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 
 import numpy as np
 from torch.utils.data import Dataset
 import torch
 
+from .data_sample import SegmentationPullerSampleArgs, SegmentationPullerSample, SegmentationPullerSampleWithConstraintsArgs, SegmentationPullerSampleWithConstraints
 from ..utils.flow_utils import attach_flow_between_segs, xyz3_to_3xyz
 from ..utils.torch_utils import torch_to_np
 
-@dataclass
-class SegmentationPullerCardioSampleArgs:
-    template_image_path : str
-    unlabeled_image_path : str
-    template_seg_path : str = None
-    unlabeled_seg_path : str = None
-    flows_gt_path : str = None
 
-@dataclass
-class SegmentationPullerSample:
-    template_image : np.array
-    unlabeled_image : np.array
-    template_seg : np.array = None
-    unlabeled_seg : np.array = None
-    flows_gt : np.array = None
-
-@dataclass
-class SegmentationPullerCardiosampleWithConstraintsArgs(SegmentationPullerCardioSampleArgs):
-    two_d_constraints_path : str = None
-    
-@dataclass
-class SegmentationPullerSampleWithConstraints(SegmentationPullerSample):
-    two_d_constraints : np.array = None
-    two_d_constraints_with_nans : np.array = None
-    two_d_constraints_mask : np.array = None
-
-
-class SegmentationPullerCardioDataset(Dataset): # this lean version only supports overfit. for the full version go to https://github.com/gallif/_4DCTCostUnrolling
-    def __init__(self, dataset_args:SegmentationPullerCardioSampleArgs, sample_type:SegmentationPullerSample, normalize=True)-> None:
+class SegmentationPullerCardioDataset(Dataset):
+    def __init__(self, dataset_args:SegmentationPullerSampleArgs, sample_type:SegmentationPullerSample, normalize=True)-> None:
         self.sample = sample_type(**{
             'template_image' : torch.tensor(np.load(dataset_args.template_image_path)),  
             'unlabeled_image' : torch.tensor(np.load(dataset_args.unlabeled_image_path)),  
@@ -66,7 +41,7 @@ class SegmentationPullerCardioDataset(Dataset): # this lean version only support
 
 
 class SegmentationPullerCardioDatasetWithConstraints(SegmentationPullerCardioDataset): # this lean version only supports overfit. for the full version go to https://github.com/gallif/_4DCTCostUnrolling
-    def __init__(self, dataset_args:SegmentationPullerCardiosampleWithConstraintsArgs)-> None:
+    def __init__(self, dataset_args:SegmentationPullerSampleWithConstraintsArgs)-> None:
         super().__init__(dataset_args=dataset_args, sample_type=SegmentationPullerSampleWithConstraints) 
         two_d_constraints_arr = np.load(dataset_args.two_d_constraints_path) # a np arr shape x,y,z,3 with mostly np.Nans and some floats. 
         two_d_constraints = attach_flow_between_segs(two_d_constraints_arr, torch_to_np(self.sample.template_seg))

@@ -92,7 +92,6 @@ class PWC3D(nn.Module):
         init_device = x1_p[0].device
         flow12 = torch.zeros(N, 3, H, W, D, dtype=init_dtype, device=init_device).float()
 
-
         for l, (_x1, _x2) in enumerate(zip(x1_p, x2_p)):
             # warping
             if l == 0:
