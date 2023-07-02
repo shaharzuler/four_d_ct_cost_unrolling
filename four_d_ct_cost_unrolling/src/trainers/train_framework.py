@@ -185,10 +185,8 @@ class TrainFramework(BaseTrainer):
 
             if count == self.args.frame_dif+1:
                 # calculating variance based only on model
-                res = self.model(image0, img2, vox_dim=vox_dim, w_bk=False)[
-                                 'flows_fw'][0][0].squeeze(0).float()
-                diff_warp_straight = torch.zeros(
-                    [2, im_h, im_w, im_d], device=self.device)
+                res = self.model(image0, img2, vox_dim=vox_dim, w_bk=False)['flows_fw'][0][0].squeeze(0).float()
+                diff_warp_straight = torch.zeros([2, im_h, im_w, im_d], device=self.device)
                 diff_warp_straight[0] = images_warped[0]
                 diff_warp_straight[1] = flow_warp(img2, res.unsqueeze(0))
                 diff_variance_straight = torch.std(diff_warp_straight, dim=0)
@@ -197,8 +195,7 @@ class TrainFramework(BaseTrainer):
                 frame_diff_error_box += float(box_variance.mean().item())
             if count == self.args.variance_valid_len - 1:
                 # calculating max_diff variance
-                diff_warp = torch.zeros(
-                    [2, im_h, im_w, im_d], device=self.device)
+                diff_warp = torch.zeros([2, im_h, im_w, im_d], device=self.device)
                 diff_warp[0] = images_warped[0]
                 diff_warp[1] = images_warped[-1]
                 diff_variance = torch.std(diff_warp, dim=0)

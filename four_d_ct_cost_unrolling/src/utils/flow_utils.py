@@ -79,3 +79,19 @@ def rescale_flow_tensor(flow_tensor:torch.tensor, target_shape:tuple[int,int,int
 
 def xyz3_to_3xyz(flow:np.array) -> np.array:
     return np.transpose(flow, (3,0,1,2))
+
+def create_and_save_backward_2d_constraints(two_d_constraints_path:str) -> str:
+    fw_constraints = np.load(two_d_constraints_path) # x,y,z,3
+    ind_of_fw_constraints = np.where(~np.isnan(fw_constraints[:,:,:,0])) # (N,N,N)
+    fw_constraints_values = fw_constraints[ind_of_fw_constraints[0], ind_of_fw_constraints[1],ind_of_fw_constraints[2],:] # N,3
+    ind_of_bw_constraints = np.round(np.array([
+        ind_of_fw_constraints[0]+fw_constraints_values[:,0], 
+        ind_of_fw_constraints[1]+fw_constraints_values[:,1], 
+        ind_of_fw_constraints[2]+fw_constraints_values[:,2] ])).T.astype(int) # N,3
+    bw_constraints = np.empty(fw_constraints.shape) # x,y,z,3
+    bw_constraints[:] = np.nan
+    bw_constraints[ind_of_bw_constraints[:,0], ind_of_bw_constraints[:,1], ind_of_bw_constraints[:,2], :] = - fw_constraints_values
+    two_d_constraints_bw_path = two_d_constraints_path.replace(".npy", "_bw_from_fw.npy")
+    np.save(two_d_constraints_bw_path, bw_constraints)
+    return two_d_constraints_bw_path
+
