@@ -25,7 +25,6 @@ class PWC3Dw2dConstraints(PWC3D):
     def forward(self, data:dict[str,torch.tensor]) -> dict[str,torch.tensor]: 
         res_dict = super().forward(data)
         constrained_flows = self.two_d_constraints_network(res_dict["flows_fw"])
-        # TODO handle backwards (requires backwards constraints!). 
         res_dict["unconstrained_flows_fw"] = res_dict["flows_fw"]
         res_dict["flows_fw"] = constrained_flows 
         res_dict["two_d_constraints"] = data["two_d_constraints"]

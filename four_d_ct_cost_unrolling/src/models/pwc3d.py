@@ -44,8 +44,7 @@ class PWC3D(nn.Module):
 
 
     def num_parameters(self):
-        return sum(
-            [p.data.nelement() if p.requires_grad else 0 for p in self.parameters()])
+        return sum([p.data.nelement() if p.requires_grad else 0 for p in self.parameters()])
 
     def init_weights(self, layer):
         if isinstance(layer, nn.Conv3d):
@@ -103,13 +102,13 @@ class PWC3D(nn.Module):
                 x2_warp = flow_warp(_x2, flow12)
 
             # correlation
-            out_corr = self.corr(_x1, x2_warp)
+            out_corr = self.corr(_x1.to("cpu"), x2_warp.to("cpu")) # to("cpu") for avoiding CUDA OOM
             out_corr_relu = self.leakyRELU(out_corr) 
 
             # concat and estimate flow
             x1_1by1 = self.conv_1x1[l+self.num_levels_to_reduce_from_pyramid](_x1) 
 
-            x_intm, flow_res = self.flow_estimators(torch.cat([out_corr_relu, x1_1by1, flow12], dim=1)) 
+            x_intm, flow_res = self.flow_estimators(torch.cat([out_corr_relu.to(x1_1by1.device), x1_1by1, flow12], dim=1)) 
             
             flow12 = flow12 + flow_res
             flow_fine = self.context_networks(torch.cat([x_intm, flow12], dim=1))

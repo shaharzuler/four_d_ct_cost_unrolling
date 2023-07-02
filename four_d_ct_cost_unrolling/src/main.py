@@ -24,7 +24,7 @@ def overfit_backbone(template_image_path, unlabeled_image_path, template_seg_pat
     output_path = trainer.train(0, 1)
     return output_path
 
-def infer_backbone(template_image_path, unlabeled_image_path, template_seg_path, unlabeled_seg_path, trained_model_path:str, args=None):
+def infer_backbone(template_image_path, unlabeled_image_path, template_seg_path, unlabeled_seg_path, args=None):
     data_sample_args = SegmentationPullerCardioSampleArgs(template_image_path, unlabeled_image_path, template_seg_path, unlabeled_seg_path)
     train_set = SegmentationPullerCardioDataset(data_sample_args, sample_type=SegmentationPullerSample)
     model = PWC3D(args)
@@ -46,7 +46,7 @@ def overfit_w_constraints(template_image_path:str, unlabeled_image_path:str, tem
     output_path = trainer.train(0, 1)
     return output_path
 
-def infer_w_constraints(template_image_path:str, unlabeled_image_path:str, template_seg_path:str, unlabeled_seg_path:str, trained_model_path:str, save_mask:bool, two_d_constraints_path:str, args:dict=None) -> None:
+def infer_w_constraints(template_image_path:str, unlabeled_image_path:str, template_seg_path:str, unlabeled_seg_path:str, save_mask:bool, two_d_constraints_path:str, args:dict=None) -> None:
     data_sample_args = SegmentationPullerCardiosampleWithConstraintsArgs(template_image_path=template_image_path, 
         unlabeled_image_path=unlabeled_image_path, 
         template_seg_path=template_seg_path, 
