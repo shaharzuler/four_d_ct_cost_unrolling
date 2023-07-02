@@ -58,7 +58,7 @@ class PWC3D(nn.Module):
             if layer.bias is not None:
                 nn.init.constant_(layer.bias, 0)
 
-    def forward(self, data:dict[str,torch.tensor], w_bk:bool=True) -> dict[str,torch.tensor]:
+    def forward(self, data:dict[str,torch.tensor]) -> dict[str,torch.tensor]:
         x1, x2, vox_dim = data["img1"], data["img2"], data["vox_dim"]
         self._calculate_pyramid_reduction(x1)
         x1_p = self.feature_pyramid_extractor(x1) + [x1] 
@@ -69,8 +69,6 @@ class PWC3D(nn.Module):
         res_dict = {
             'flows_fw': self._forward_2_frames(x1_p, x2_p, mask=masks[0], vox_dim=vox_dim)
         }
-        if w_bk:
-            res_dict['flows_bk'] = self._forward_2_frames(x2_p, x1_p, mask=masks[1], vox_dim=vox_dim)
         return res_dict
 
     def _calculate_pyramid_reduction(self, x1):

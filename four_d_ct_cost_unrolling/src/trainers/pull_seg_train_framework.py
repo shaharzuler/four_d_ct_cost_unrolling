@@ -92,7 +92,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         self.model.eval()
         for data in self.train_loader:
             prepared_data = self._prepare_data(data)
-            res_dict = self.model(prepared_data, w_bk=False) 
+            res_dict = self.model(prepared_data) 
             flow_tensor = res_dict["flows_fw"][0][0]
             
             if self.inference_args.inference_flow_median_filter_size:

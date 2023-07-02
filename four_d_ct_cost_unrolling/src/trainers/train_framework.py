@@ -18,11 +18,8 @@ class TrainFramework(BaseTrainer):
         return loss, (l_ph, l_sm, flow_mean)
 
     def _post_process_model_output(self, res_dict:dict[str,torch.tensor]) -> tuple[list[torch.tensor],tuple]:
-        flows12, flows21 = res_dict['flows_fw'][0], res_dict['flows_bk'][0]
-        aux12, aux21 = res_dict['flows_fw'][1], res_dict['flows_bk'][1]
-            
-        flows = [torch.cat([flo12, flo21], 1) for flo12, flo21 in zip(flows12, flows21)]
-        aux = (aux12, aux21)
+        flows = res_dict['flows_fw'][0]
+        aux = res_dict['flows_fw'][1]
         return flows, aux
 
     def update_to_tensorboard(self, key_meter_names:list[str], key_meters:AverageMeter) -> None:
@@ -170,11 +167,9 @@ class TrainFramework(BaseTrainer):
                 count = 0
 
             # Remove batch dimension, net prediction
-            res = self.model(img1, img2, vox_dim=vox_dim, w_bk=False)[
-                'flows_fw'][0][0].squeeze(0).float()
+            res = self.model(img1, img2, vox_dim=vox_dim)['flows_fw'][0][0].squeeze(0).float()
             flows += res
-            images_warped[(i_step % (self.args.variance_valid_len - 1))+1] = flow_warp(img2,
-                                                                                   flows.unsqueeze(0))  # im1 recons
+            images_warped[(i_step % (self.args.variance_valid_len - 1))+1] = flow_warp(img2,flows.unsqueeze(0))  # im1 recons
             count += 1
 
             if count == self.args.variance_valid_short_len - 1:
@@ -185,7 +180,7 @@ class TrainFramework(BaseTrainer):
 
             if count == self.args.frame_dif+1:
                 # calculating variance based only on model
-                res = self.model(image0, img2, vox_dim=vox_dim, w_bk=False)['flows_fw'][0][0].squeeze(0).float()
+                res = self.model(image0, img2, vox_dim=vox_dim)['flows_fw'][0][0].squeeze(0).float()
                 diff_warp_straight = torch.zeros([2, im_h, im_w, im_d], device=self.device)
                 diff_warp_straight[0] = images_warped[0]
                 diff_warp_straight[1] = flow_warp(img2, res.unsqueeze(0))
