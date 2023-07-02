@@ -56,8 +56,6 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         break_ = self._deicide_on_early_stop()
         return break_
 
-    
-
     def _visualize(self, data:dict, pred_flow:torch.tensor, res_dict:dict=None) -> None: 
         self._add_orig_images_to_tensorboard(data, pred_flow)
         img1_recons_disp = self._add_warped_image_to_tensorboard(data, pred_flow)
@@ -87,7 +85,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         imgs_disp = disp_training_fig(torch_to_np(data["template_image"][0]), torch_to_np(data["unlabeled_image"][0]), torch_to_np(pred_flow[0]))
         self.summary_writer.add_images(f'original_images', imgs_disp, self.i_epoch, dataformats='NCHW')
 
-    def infer(self, rank:int, world_size:int, save_mask:bool=True):
+    def infer(self, rank:int, world_size:int, save_mask:bool=True) -> str:
         self._init_rank(rank, world_size, update_tensorboard=False)
         self.model.eval()
         for data in self.train_loader:
@@ -101,6 +99,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
                     flow_tensor[:,axis,:,:,:] = torch.tensor(scipy.ndimage.median_filter(input=torch_to_np(flow_tensor[:,axis,:,:]), size=self.inference_args.inference_flow_median_filter_size))
             if save_mask:
                 self.warp_and_save_mask(data, flow_tensor) 
+        return self.output_root
 
     def warp_and_save_mask(self, data:dict[str,torch.tensor], flow:torch.tensor, save_nrrd:bool=False) -> None: 
         template_seg_map = data["template_seg"] 

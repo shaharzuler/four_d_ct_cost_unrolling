@@ -32,7 +32,6 @@ def save_checkpoint(save_dir:str, states:dict, prefix:str, is_best:bool, filenam
     if is_best:
         shutil.copyfile(file_path, os.path.join(save_dir, f'{prefix}_model_best.pth.tar'))
 
-
 def rescale_mask_tensor(mask:torch.tensor, scale_factor:tuple) -> torch.tensor:
     if scale_factor != (1, 1, 1):
         mask_scaled = F.interpolate(mask.float(), scale_factor=scale_factor, mode='nearest').bool()

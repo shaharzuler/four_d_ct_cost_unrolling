@@ -2,6 +2,7 @@ import os
 import datetime
 from abc import abstractmethod
 import pathlib
+import json
 
 import torch
 from torch.utils.tensorboard import SummaryWriter
@@ -23,15 +24,19 @@ class BaseTrainer:
         self.model = model
         self.optimizer = self._get_optimizer()
         self.lowest_loss = 1E10
-        self.output_root = f"{pathlib.Path(self.args.output_root)}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
         self.i_epoch = self.args.after_epoch+1
         self.i_iter = 0
         self.model_suffix = args.model_suffix
         self.loss_modules = losses
         self.scaler = GradScaler()
 
+        self.output_root = f"{self.args.output_root}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        pathlib.Path(self.output_root).mkdir(parents=True, exist_ok=True)
+        with open(os.path.join(self.output_root,"config.json"), "w") as f:
+            f.write(json.dumps(args, indent=4))
 
-    def train(self, rank:int, world_size:int) -> None:
+
+    def train(self, rank:int, world_size:int) -> str:
         self._init_rank(rank, world_size)
         
         for epoch in range(self.args.epochs):
@@ -41,6 +46,8 @@ class BaseTrainer:
             self.i_epoch += 1
             if break_:
                 break
+        
+        return self.output_root
         
 
     @abstractmethod

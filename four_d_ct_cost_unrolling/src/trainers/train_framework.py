@@ -79,7 +79,6 @@ class TrainFramework(BaseTrainer):
     def _validate_self(self, validate_self_data:dict) -> None:
         self._validate_basic(validate_self_data) 
 
-    
     def synt_validate(self): #TODO
         error = 0
         loss = 0
