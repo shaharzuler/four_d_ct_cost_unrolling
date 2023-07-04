@@ -65,16 +65,16 @@ class TrainFramework(BaseTrainer):
         return data 
             
     @torch.no_grad()
-    def _validate(self, validation_data:dict):
+    def _validate(self, validation_data:dict) -> None:
         if hasattr(self.args,'dump_disp') and self.args.dump_disp:
             return self._dumpt_disp_fields()
         else:
             if 'synthetic' in self.args.valid_type:
-                return self.synt_validate(validation_data["synt_validate"])
+                self._synt_validate(validation_data["synt_validate"])
             if 'variance_valid' in self.args.valid_type:
-                return self.variance_validate()
+                self.variance_validate()
             if "basic" in self.args.valid_type: 
-                return self._validate_self(validation_data["validate_self"])
+                self._validate_self(validation_data["validate_self"])
 
     def _validate_basic(self, validate_data:dict) -> None: # optional - also validate by iou
         if self.i_iter > self.args.save_iter:
@@ -83,7 +83,7 @@ class TrainFramework(BaseTrainer):
     def _validate_self(self, validate_self_data:dict) -> None:
         self._validate_basic(validate_self_data) 
 
-    def synt_validate(self, validation_data): #TODO
+    def _synt_validate(self, validation_data): #TODO
         flows_pred = validation_data["flows_pred"]
         flows_gt = validation_data["flows_gt"].to(flows_pred.device)
         flow_diff = flows_gt - flows_pred

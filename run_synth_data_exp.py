@@ -25,7 +25,7 @@ from four_d_ct_cost_unrolling import get_default_backbone_config, get_default_w_
 
 
 args = get_default_backbone_config()
-args["save_iter"] = 20
+args["save_iter"] = 2
 args["inference_args"]["inference_flow_median_filter_size"] = False
 args["epochs"] = 300
 args["valid_type"] = "synthetic+basic"
@@ -54,11 +54,12 @@ backbone_inference_output_path = infer_backbone(
 
 
 args = get_default_w_constraints_config()
-args["save_iter"] = 20
+args["save_iter"] = 2
 args["inference_args"]["inference_flow_median_filter_size"] = False
 args["epochs"] = 300
 args["load"] = get_checkpoints_path(backbone_model_output_path)
 args["valid_type"] = "synthetic+basic"
+args["w_sm_scales"] = [0,0,0,0,0]
 
 
 constraints_model_output_path = overfit_w_constraints(

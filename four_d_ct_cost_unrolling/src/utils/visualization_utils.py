@@ -100,7 +100,7 @@ def get_mask_contours(mask:np.array, downsample_factor:int=2) -> np.array:
     contours = contours[::downsample_factor,:,:]
     return contours
 
-def _add_flow_contour_arrows(image:np.array, contours:np.array, slice_flow:np.array, arrow_scale_factor:int=5, equal_arrow_length:bool=False) -> np.array:
+def _add_flow_contour_arrows(image:np.array, contours:np.array, slice_flow:np.array, arrow_scale_factor:int=1, equal_arrow_length:bool=False) -> np.array:
     for contour in contours:
         start, end = _get_arrow_start_end_coords(contour, slice_flow, arrow_scale_factor, equal_arrow_length)
         image = cv2.arrowedLine(image,(start[0],start[1]),(end[0],end[1]),color=(0,0,0),thickness=1)
