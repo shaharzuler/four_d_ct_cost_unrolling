@@ -13,20 +13,20 @@ def extract_img_middle_slices(img:np.array) -> tuple[np.array]:
     slice_z = img[:, :, k]
     return slice_x, slice_y, slice_z
 
-def add_mask(p_warped:np.array, template_seg_map:np.array, seg_reconst:np.array) -> np.array:
-    slice_x_2, slice_y_2, slice_z_2 = extract_img_middle_slices(template_seg_map)
+def add_mask(img_warped:np.array, template_seg:np.array, seg_reconst:np.array) -> np.array:
+    slice_x_2, slice_y_2, slice_z_2 = extract_img_middle_slices(template_seg)
     slice_x_g, slice_y_g, slice_z_g = extract_img_middle_slices(seg_reconst)
 
-    seg_template_row = np.concatenate([slice_x_2, slice_y_2, slice_z_2], axis=1)
     seg_recons_row = np.concatenate([slice_x_g, slice_y_g, slice_z_g],axis=1).astype(np.float32)
-
-    seg_arr = np.concatenate([seg_recons_row, seg_template_row, seg_recons_row], axis=0) # row1 has the query unabeled image, row2 is the GT, row3 is the row2 warped to match row1
+    seg_template_row = np.concatenate([slice_x_2, slice_y_2, slice_z_2], axis=1)
+    seg_recons_row_copy = seg_recons_row.copy()
+    
+    seg_arr = np.concatenate([seg_recons_row, seg_template_row, seg_recons_row_copy], axis=0) # row1 has the query unabeled image, row2 is the GT, row3 is the row2 warped to match row1
     seg_arr_rgb = cv2.cvtColor(seg_arr.astype(bool).astype(np.float32), cv2.COLOR_GRAY2RGB)
 
-    p_warped_cropped = p_warped[:seg_arr.shape[0],:,:]
-    np.place(p_warped_cropped[:,:,0], seg_arr.astype(bool), seg_arr_rgb[:,:,0])
-
-    return np.expand_dims(p_warped_cropped, 0)
+    img_warped_cropped = img_warped[:seg_arr.shape[0],:,:].astype(np.float32)
+    np.copyto(img_warped_cropped[:,:,0], seg_arr_rgb[:,:,0],  where=seg_arr.astype(bool))
+    return np.expand_dims(img_warped_cropped, 0)
 
 def disp_warped_img(img1:np.array, img1_recons:np.array, img2:np.array) -> np.array:    
     slice_x_r, slice_y_r, slice_z_r = extract_img_middle_slices(img1)
@@ -39,15 +39,19 @@ def disp_warped_img(img1:np.array, img1_recons:np.array, img2:np.array) -> np.ar
 
     img_row = np.concatenate([slice_x_r, slice_y_r, slice_z_r], axis=1).astype(np.float32)
     img_row = cv2.cvtColor(img_row, cv2.COLOR_GRAY2RGB)
+    img_row = cv2.putText(img_row, "template_image", org=(10,20), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.7, color=(1.,0,0), thickness=2)
 
     slice_x_2, slice_y_2, slice_z_2 = extract_img_middle_slices(img2)
     img2_row = np.concatenate([slice_x_2, slice_y_2, slice_z_2], axis=1).astype(np.float32)
     img2_row = cv2.cvtColor(img2_row, cv2.COLOR_GRAY2RGB)
+    img2_row = cv2.putText(img2_row, "unlabeled_image", org=(10,20), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.7, color=(1.,0,0), thickness=2)
 
     img_recons_row = np.concatenate([slice_x_g, slice_y_g, slice_z_g],axis=1).astype(np.float32)
     img_recons_row = cv2.cvtColor(img_recons_row,cv2.COLOR_GRAY2RGB)
+    img_recons_row = cv2.putText(img_recons_row, "warped_image", org=(10,20), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.7, color=(1.,0,0), thickness=2)
 
     colored_error_row = np.concatenate([slice_x, slice_y, slice_z],axis=1)[None,::].squeeze(0)
+    colored_error_row = cv2.putText(colored_error_row, "images_diff", org=(10,20), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.7, color=(1.,0,0), thickness=2)
 
     img_arr = np.concatenate([img_row, img2_row, img_recons_row, colored_error_row], axis=0)
     
@@ -60,19 +64,10 @@ def disp_training_fig(img1:np.array, img2:np.array, flow:np.array) -> np.array:
     slice_x_1, slice_y_1, slice_z_1 = extract_img_middle_slices(img1)
     slice_x_2, slice_y_2, slice_z_2 = extract_img_middle_slices(img2)
 
-    slice_x_flow, slice_y_flow, slice_z_flow = get_2d_flow_sections(flow)
-
-    slice_x_flow = np.transpose(slice_x_flow,[1, 2, 0])
-    slice_y_flow = np.transpose(slice_y_flow,[1, 2, 0])
-    slice_z_flow = np.transpose(slice_z_flow,[1, 2, 0])
-
-    slice_x_flow_col = flow_vis.flow_to_color(slice_x_flow, convert_to_bgr=False)
-    slice_y_flow_col = flow_vis.flow_to_color(slice_y_flow, convert_to_bgr=False)
-    slice_z_flow_col = flow_vis.flow_to_color(slice_z_flow, convert_to_bgr=False)
-
     slices_1 = [np.tile(slice,(3, 1, 1)) for slice in [slice_x_1, slice_y_1, slice_z_1]]
     slices_2 = [np.tile(slice,(3, 1, 1)) for slice in [slice_x_2, slice_y_2, slice_z_2]]
-    flows12  = [np.transpose(slice,(2, 0, 1)) for slice in [slice_x_flow_col, slice_y_flow_col, slice_z_flow_col]]
+
+    flows12 = disp_flow_colors(flow)
 
     slice_imgs = [np.concatenate([slice_1, slice_2, slice_flow.astype(np.float32)/255], axis=1) for slice_1, slice_2, slice_flow in zip(slices_1, slices_2, flows12)]
 
@@ -139,3 +134,40 @@ def disp_flow_as_arrows(img:np.array, seg:np.array, flow:np.array, text:str=None
         all_flow_arrowed_disp = cv2.putText(all_flow_arrowed_disp, text, org=(10,20), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.7, color=(1.,0,0), thickness=2)
     all_flow_arrowed_disp = np.expand_dims(np.transpose(all_flow_arrowed_disp, (2,0,1)), 0)
     return all_flow_arrowed_disp
+
+def disp_flow_colors(flow:np.array) -> np.array:
+    slice_x_flow, slice_y_flow, slice_z_flow = get_2d_flow_sections(flow)
+
+    slice_x_flow = np.transpose(slice_x_flow,[1, 2, 0])
+    slice_y_flow = np.transpose(slice_y_flow,[1, 2, 0])
+    slice_z_flow = np.transpose(slice_z_flow,[1, 2, 0])
+
+    slice_x_flow_col = flow_vis.flow_to_color(slice_x_flow, convert_to_bgr=False)
+    slice_y_flow_col = flow_vis.flow_to_color(slice_y_flow, convert_to_bgr=False)
+    slice_z_flow_col = flow_vis.flow_to_color(slice_z_flow, convert_to_bgr=False)
+
+    flows_colors  = [np.transpose(slice,(2, 0, 1)) for slice in [slice_x_flow_col, slice_y_flow_col, slice_z_flow_col]]
+    return flows_colors
+
+def _disp_single_flow_colors(flow:np.array, text:str=None) -> np.array:
+    flow_disp = np.dstack(disp_flow_colors(flow)).astype(np.float32)/255
+    if text is not None:
+        flow_disp = np.transpose(flow_disp, (1,2,0))
+        flow_disp = cv2.putText(flow_disp, text, org=(10,20), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.7, color=(1.,0,0), thickness=2)
+        flow_disp = np.transpose(flow_disp, (2,0,1))
+    return flow_disp
+
+def disp_flow_error_colors(flows_pred:np.array, flows_gt:np.array) -> np.array:
+    flows_pred_disp = _disp_single_flow_colors(flows_pred, text="prediction")
+    flows_gt_disp = _disp_single_flow_colors(flows_gt, text="ground truth")
+    diff = flows_pred - flows_gt
+    abs_diff_disp = _disp_single_flow_colors(diff, text="error")
+    abs_diff = np.abs(diff)
+    abs_flow_diff = np.sum(np.dstack(get_2d_flow_sections(abs_diff)), axis=0) #clip? TODO #TODO maybe add epe map here
+    abs_flow_diff_rgb = cv2.cvtColor(abs_flow_diff.astype(np.float32), cv2.COLOR_GRAY2RGB)
+    abs_flow_diff_rgb = cv2.putText(abs_flow_diff_rgb, "absolute error", org=(10,20), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.7, color=(1.,0,0), thickness=2)
+    abs_flow_diff_rgb = np.transpose(abs_flow_diff_rgb, (2,0,1))
+
+    flow_error_colors_fig = np.concatenate((flows_pred_disp, flows_gt_disp, abs_diff_disp, abs_flow_diff_rgb ),axis=1)[None,::]
+    return flow_error_colors_fig
+

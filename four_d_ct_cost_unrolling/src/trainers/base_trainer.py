@@ -115,9 +115,7 @@ class BaseTrainer:
 
     def _save_model(self, loss:float, name:str) -> None:
         is_best = loss < self.lowest_loss          
-        if is_best:
-            self.lowest_loss = loss
-        
+
         try:
             models = {'epoch': self.i_epoch, 'state_dict': self.model.module.state_dict()}
         except:

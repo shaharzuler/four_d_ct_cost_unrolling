@@ -3,10 +3,14 @@ import time
 from scipy.ndimage.interpolation import zoom as zoom
 import torch
 from torch.utils.data import Dataset
+import numpy as np
 
 from .base_trainer import BaseTrainer
 from ..utils.flow_utils import flow_warp
 from ..utils.metrics_utils import AverageMeter
+from ..utils.visualization_utils import disp_flow_error_colors, disp_flow_as_arrows
+from ..utils.torch_utils import torch_to_np
+
 
 
 class TrainFramework(BaseTrainer):
@@ -65,11 +69,11 @@ class TrainFramework(BaseTrainer):
         if hasattr(self.args,'dump_disp') and self.args.dump_disp:
             return self._dumpt_disp_fields()
         else:
-            if self.args.valid_type == 'synthetic':
+            if 'synthetic' in self.args.valid_type:
                 return self.synt_validate(validation_data["synt_validate"])
-            elif self.args.valid_type == 'variance_valid':
+            if 'variance_valid' in self.args.valid_type:
                 return self.variance_validate()
-            elif self.args.valid_type == "basic": 
+            if "basic" in self.args.valid_type: 
                 return self._validate_self(validation_data["validate_self"])
 
     def _validate_basic(self, validate_data:dict) -> None: # optional - also validate by iou
@@ -79,57 +83,24 @@ class TrainFramework(BaseTrainer):
     def _validate_self(self, validate_self_data:dict) -> None:
         self._validate_basic(validate_self_data) 
 
-    def synt_validate(self): #TODO
-        error = 0
-        loss = 0
-
-        for i_step, data in enumerate(self.valid_loader):
-            img1, img2, flow12 = data
-            vox_dim = img1[1].to(self.device)
-            img1, img2, flow12 = img1[0].to(self.device), img2[0].to(self.device), flow12[0].to(self.device)
-            img1 = img1.unsqueeze(1).float().to(self.device)  # Add channel dimension
-            img2 = img2.unsqueeze(1).float().to(self.device)  # Add channel dimension
-
-            output = self.model(img1, img2, vox_dim=vox_dim)
-            flow12_net = output[0].squeeze(0).float().to(self.device)  # Remove batch dimension, net prediction
-            epe_map = torch.sqrt(torch.sum(torch.square(flow12 - flow12_net), dim=0)).to(self.device).mean()
-            # epe_map = torch.abs(flow12 - flow12_net).to(self.device).mean()
-            error += float(epe_map.mean().item())
-            _loss, l_ph, l_sm = self.loss_func(output, img1, img2, vox_dim)
-            loss += float(_loss.mean().item())
-
-        error /= len(self.valid_loader)
-        loss /= len(self.valid_loader)
+    def synt_validate(self, validation_data): #TODO
+        flows_pred = validation_data["flows_pred"]
+        flows_gt = validation_data["flows_gt"].to(flows_pred.device)
+        flow_diff = flows_gt - flows_pred
+        epe_map = torch.sqrt(torch.sum(torch.square(flow_diff), dim=0)).mean()
+        # epe_map = torch.abs(flow12 - flow12_net).to(self.device).mean()
+        error = float(epe_map.mean().item())
         print(f'Validation error -> {error}')
-        print(f'Validation loss -> {loss}')
+        self.summary_writer.add_scalar('Validation Error',error,self.i_epoch)
+        
+        self.add_flow_error_vis_to_tensorboard(flows_pred, flows_gt)
+        
+        return error
+    def add_flow_error_vis_to_tensorboard(self, flows_pred, flows_gt) -> None: 
+        flow_colors_error_disp = disp_flow_error_colors(torch_to_np(flows_pred[0]), torch_to_np(flows_gt[0]))
+        self.summary_writer.add_images(f'flow_error', flow_colors_error_disp, self.i_epoch, dataformats='NCHW')
 
-        self.writer.add_scalar('Validation Error',
-                               error,
-                               self.i_epoch)
 
-        self.writer.add_scalar('Validation Loss',
-                               loss,
-                               self.i_epoch)
-
-        # p_imgs = [plot_image(im.detach().cpu(), show=False) for im in [img1, img2]]
-        # p_conc_imgs= np.concatenate((np.concatenate(p_imgs[0][:1]+p_imgs[1][:1]),p_imgs[0][2]+p_imgs[1][2]))[np.newaxis][np.newaxis]
-        # p_flows = [plot_flow(fl.detach().cpu(), show=False) for fl in [flow12,flow12_net]]
-        # p_flows_conc = np.transpose(np.concatenate((np.concatenate(p_flows[0][:1]+p_flows[1][:1]),)),(2,0,1))[np.newaxis]
-        # self.writer.add_images('Valid_Images_{}'.format(self.i_epoch), p_conc_imgs, self.i_epoch)
-        # self.writer.add_images('Valid_Flows_{}'.format(self.i_epoch), p_flows_conc, self.i_epoch)
-
-        # p_img_fig = plot_images(img1.detach().cpu(), img2.detach().cpu())
-        # p_flo_gt = plot_flow(flow12.detach().cpu())
-        # p_flo = plot_flow(flow12_net.detach().cpu())
-        # self.writer.add_figure('Valid_Images_{}'.format(self.i_epoch), p_img_fig, self.i_epoch)
-        # self.writer.add_figure('Valid_Flows_gt_{}'.format(self.i_epoch), p_flo_gt, self.i_epoch)
-        # self.writer.add_figure('Valid_Flows_{}'.format(self.i_epoch), p_flo, self.i_epoch)
-
-        p_valid = plot_validation_fig(img1.detach().cpu(), img2.detach().cpu(), flow12.detach().cpu(),
-                                      flow12_net.detach().cpu(), show=False)
-        self.writer.add_figure('Valid_Images', p_valid, self.i_epoch)
-
-        return error, loss
 
     @torch.no_grad()
     def variance_validate(self): # NOT TESTED

@@ -46,7 +46,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         validation_data = {
             "validate_self":{"avg_loss": avg_loss}, 
             "synt_validate":{
-                "flows_pred": flows,
+                "flows_pred": flows[0],
                 "flows_gt": data["flows_gt"]
                 }
             }
@@ -61,12 +61,16 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         img1_recons_disp = self._add_warped_image_to_tensorboard(data, pred_flow)
         self._add_warped_seg_mask_to_tensorboard(data, pred_flow, img1_recons_disp)
         self._add_flow_arrows_on_mask_contours_to_tensorboard(data, torch_to_np(pred_flow[0]), res_dict)
-
+        
     def _add_flow_arrows_on_mask_contours_to_tensorboard(self, data, pred_flow, _) -> None:
         img1 = torch_to_np(data["template_image"][0])
         seg = torch_to_np(data["template_seg"][0])
-        all_flow_arrowed_disp = disp_flow_as_arrows(img1, seg, pred_flow)
-        self.summary_writer.add_images('sample_flows', all_flow_arrowed_disp, self.i_epoch, dataformats='NCHW')
+        flow_arrowed_disp = disp_flow_as_arrows(img1, seg, pred_flow, text="prediction")
+        if len(data["flows_gt"].shape) > 1:
+            flows_gt = torch_to_np(data["flows_gt"][0])
+            gt_flow_arrowed_disp = disp_flow_as_arrows(img1, seg, flows_gt, text="ground truth")
+            flow_arrowed_disp = np.concatenate([flow_arrowed_disp, gt_flow_arrowed_disp], axis=2)
+        self.summary_writer.add_images('sample_flows', flow_arrowed_disp, self.i_epoch, dataformats='NCHW')
 
     def _add_warped_seg_mask_to_tensorboard(self, data:dict, pred_flow:torch.tensor, img1_recons_disp:np.array) -> None:
         template_seg_map = data["template_seg"]
@@ -83,7 +87,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
 
     def _add_orig_images_to_tensorboard(self, data:dict[str:torch.tensor], pred_flow:torch.tensor) -> None:
         imgs_disp = disp_training_fig(torch_to_np(data["template_image"][0]), torch_to_np(data["unlabeled_image"][0]), torch_to_np(pred_flow[0]))
-        self.summary_writer.add_images(f'original_images', imgs_disp, self.i_epoch, dataformats='NCHW')
+        self.summary_writer.add_images(f'original_images+pred_flow', imgs_disp, self.i_epoch, dataformats='NCHW')
 
     def infer(self, rank:int, save_mask:bool=True) -> str:
         self._init_rank(rank, update_tensorboard=False)
