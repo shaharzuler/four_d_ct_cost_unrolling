@@ -17,6 +17,7 @@ class SegmentationPullerCardioDataset(Dataset):
             'template_seg' : torch.tensor(np.load(dataset_args.template_seg_path)),
             'unlabeled_seg' : torch.tensor(np.load(dataset_args.unlabeled_seg_path))
             })
+
         if dataset_args.flows_gt_path is not None:
             self.sample.flows_gt = -torch.tensor(xyz3_to_3xyz(np.load(dataset_args.flows_gt_path)))
         else:

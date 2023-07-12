@@ -11,4 +11,4 @@ scipy>=1.5.4
 tensorboard>=2.5.0
 torch>=1.9.0
 pynrrd>=0.4.2
-three_d_data_manager @ git+https://github.com/shaharzuler/three_d_data_manager
+three_d_data_manager @ git+https://github.com/shaharzuler/three_d_data_manager.git
