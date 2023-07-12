@@ -8,7 +8,8 @@ with open('requirements.txt') as f:
 setup(
     name='four_d_ct_cost_unrolling',
     version='0.1.0',
-    packages=find_packages(),
+    include_package_data=True,
+    # packages=find_packages(),
     install_requires=requirements,
     author='Shahar Zuler',
     author_email='shahar.zuler@gmail.com',
