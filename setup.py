@@ -9,7 +9,7 @@ setup(
     name='four_d_ct_cost_unrolling',
     version='0.1.0',
     include_package_data=True,
-    # packages=find_packages(),
+    packages=find_packages(),
     install_requires=requirements,
     author='Shahar Zuler',
     author_email='shahar.zuler@gmail.com',
