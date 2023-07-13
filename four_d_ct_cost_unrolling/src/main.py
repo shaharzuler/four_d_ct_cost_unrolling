@@ -1,19 +1,16 @@
  # this lean version only supports overfit. for the full version go to https://github.com/gallif/_4DCTCostUnrolling
 
-from .losses.get_loss import get_loss
+from three_d_data_manager import write_config_file
 
+from .losses.get_loss import get_loss
 from .trainers.pull_seg_train_framework import PullSegmentationMapTrainFramework
 from .trainers.pull_seg_train_framework_w_2d_constraints import PullSegmentationMapTrainFrameworkWith2dConstraints
-
 from .dataset_handlers.seg_puller_cardio_dataset import SegmentationPullerCardioDataset, SegmentationPullerCardioDatasetWithConstraints
 from .dataset_handlers.data_sample import SegmentationPullerSampleArgs, SegmentationPullerSampleWithConstraintsArgs, SegmentationPullerSample
-
 from .models.pwc3d import PWC3D
 from .models.pwc3d_w_2d_constraints import PWC3Dw2dConstraints
 
 
-
-    
 
 def overfit_backbone(template_image_path:str, unlabeled_image_path:str, template_seg_path:str, unlabeled_seg_path:str, flows_gt_path:str=None, args:dict=None) -> str: 
     data_sample_args = SegmentationPullerSampleArgs(template_image_path, unlabeled_image_path, template_seg_path, unlabeled_seg_path, flows_gt_path)
@@ -22,6 +19,7 @@ def overfit_backbone(template_image_path:str, unlabeled_image_path:str, template
     loss = get_loss(args)
     trainer = PullSegmentationMapTrainFramework(train_set, model, loss, args)
     output_path = trainer.train(args.cuda_device)
+    write_config_file(args["output_root"], "training_backbone", args)
     return output_path
 
 def infer_backbone(template_image_path:str, unlabeled_image_path:str, template_seg_path:str, unlabeled_seg_path:str, flows_gt_path:str=None, args:dict=None):
@@ -45,6 +43,7 @@ def overfit_w_constraints(template_image_path:str, unlabeled_image_path:str, tem
     loss = get_loss(args)
     trainer = PullSegmentationMapTrainFrameworkWith2dConstraints(train_set, model, loss, args)
     output_path = trainer.train(args.cuda_device)
+    write_config_file(args["output_root"], "training_w_constraints", args)
     return output_path
 
 def infer_w_constraints(template_image_path:str, unlabeled_image_path:str, template_seg_path:str, unlabeled_seg_path:str, save_mask:bool, two_d_constraints_path:str, flows_gt_path:str=None, args:dict=None) -> None:
