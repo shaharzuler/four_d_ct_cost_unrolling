@@ -19,7 +19,6 @@ def overfit_backbone(template_image_path:str, unlabeled_image_path:str, template
     loss = get_loss(args)
     trainer = PullSegmentationMapTrainFramework(train_set, model, loss, args)
     output_path = trainer.train(args.cuda_device)
-    write_config_file(args["output_root"], "training_backbone", args)
     return output_path
 
 def infer_backbone(template_image_path:str, unlabeled_image_path:str, template_seg_path:str, unlabeled_seg_path:str, flows_gt_path:str=None, args:dict=None):
@@ -43,7 +42,6 @@ def overfit_w_constraints(template_image_path:str, unlabeled_image_path:str, tem
     loss = get_loss(args)
     trainer = PullSegmentationMapTrainFrameworkWith2dConstraints(train_set, model, loss, args)
     output_path = trainer.train(args.cuda_device)
-    write_config_file(args["output_root"], "training_w_constraints", args)
     return output_path
 
 def infer_w_constraints(template_image_path:str, unlabeled_image_path:str, template_seg_path:str, unlabeled_seg_path:str, save_mask:bool, two_d_constraints_path:str, flows_gt_path:str=None, args:dict=None) -> None:

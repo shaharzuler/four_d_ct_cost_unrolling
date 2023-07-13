@@ -45,5 +45,8 @@ class PullSegmentationMapTrainFrameworkWith2dConstraints(PullSegmentationMapTrai
         all_flow_arrowed_constraints_disp = disp_flow_as_arrows(img1, seg, torch_to_np(res_dict['two_d_constraints'][0]), text="constraints")
         all_flow_arrowed_after_constraints_disp = disp_flow_as_arrows(img1, seg, pred_flow, text="after_constraints")
         all_flow_arrowed_disp = np.concatenate([all_flow_arrowed_before_constraints_disp, all_flow_arrowed_constraints_disp, all_flow_arrowed_after_constraints_disp], axis=2)
-
+        if len(data["flows_gt"].shape) > 1:
+            flows_gt = torch_to_np(data["flows_gt"][0])
+            gt_flow_arrowed_disp = disp_flow_as_arrows(img1, seg, flows_gt, text="ground truth", arrow_scale_factor=self.args.visualization_arrow_scale_factor)
+            all_flow_arrowed_disp = np.concatenate([all_flow_arrowed_disp, gt_flow_arrowed_disp], axis=2)
         self.summary_writer.add_images('sample_flows', all_flow_arrowed_disp, self.i_epoch, dataformats='NCHW')

@@ -10,6 +10,8 @@ from torch.cuda.amp import GradScaler
 from collections import OrderedDict
 from torch.utils.data import Dataset
 
+from three_d_data_manager import write_config_file
+
 from ..utils.torch_utils import bias_parameters, weight_parameters, load_checkpoint, save_checkpoint
 
 
@@ -31,10 +33,9 @@ class BaseTrainer:
         self.scaler = GradScaler()
 
         self.output_root = f"{self.args.output_root}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        self.args.output_root = self.output_root
         pathlib.Path(self.output_root).mkdir(parents=True, exist_ok=True)
-        with open(os.path.join(self.output_root,"config.json"), "w") as f:
-            f.write(json.dumps(args, indent=4))
-
+        write_config_file(self.output_root, "training", args)
 
     def train(self, rank:int) -> str:
         self._init_rank(rank)
