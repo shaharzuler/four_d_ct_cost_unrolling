@@ -65,10 +65,10 @@ class PullSegmentationMapTrainFramework(TrainFramework):
     def _add_flow_arrows_on_mask_contours_to_tensorboard(self, data, pred_flow, _) -> None:
         img1 = torch_to_np(data["template_image"][0])
         seg = torch_to_np(data["template_seg"][0])
-        flow_arrowed_disp = disp_flow_as_arrows(img1, seg, pred_flow, text="prediction")
+        flow_arrowed_disp = disp_flow_as_arrows(img1, seg, pred_flow, text="prediction", arrow_scale_factor=self.args.visualization_arrow_scale_factor)
         if len(data["flows_gt"].shape) > 1:
             flows_gt = torch_to_np(data["flows_gt"][0])
-            gt_flow_arrowed_disp = disp_flow_as_arrows(img1, seg, flows_gt, text="ground truth")
+            gt_flow_arrowed_disp = disp_flow_as_arrows(img1, seg, flows_gt, text="ground truth", arrow_scale_factor=self.args.visualization_arrow_scale_factor)
             flow_arrowed_disp = np.concatenate([flow_arrowed_disp, gt_flow_arrowed_disp], axis=2)
         self.summary_writer.add_images('sample_flows', flow_arrowed_disp, self.i_epoch, dataformats='NCHW')
 

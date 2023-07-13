@@ -100,7 +100,7 @@ def get_mask_contours(mask:np.array, downsample_factor:int=2) -> np.array:
     contours = contours[::downsample_factor,:,:]
     return contours
 
-def _add_flow_contour_arrows(image:np.array, contours:np.array, slice_flow:np.array, arrow_scale_factor:int=1, equal_arrow_length:bool=False) -> np.array:
+def _add_flow_contour_arrows(image:np.array, contours:np.array, slice_flow:np.array, arrow_scale_factor:int, equal_arrow_length:bool=False) -> np.array:
     for contour in contours:
         start, end = _get_arrow_start_end_coords(contour, slice_flow, arrow_scale_factor, equal_arrow_length)
         image = cv2.arrowedLine(image,(start[0],start[1]),(end[0],end[1]),color=(0,0,0),thickness=1)
@@ -114,20 +114,20 @@ def _get_arrow_start_end_coords(contour:np.array, slice_flow:np.array, arrow_sca
     end = np.round(start+delta*arrow_scale_factor).astype(start.dtype)
     return start, end
 
-def _add_arrows_from_mask_on_2d_img(img_slice:np.array, mask_slice:np.array, flow_slice:np.array) -> np.array:
+def _add_arrows_from_mask_on_2d_img(img_slice:np.array, mask_slice:np.array, flow_slice:np.array, arrow_scale_factor:int) -> np.array:
     contours = get_mask_contours(mask_slice)        
-    img_slice_w_arrows = _add_flow_contour_arrows(img_slice, contours, flow_slice)
+    img_slice_w_arrows = _add_flow_contour_arrows(img_slice, contours, flow_slice, arrow_scale_factor)
     return img_slice_w_arrows
 
-def disp_flow_as_arrows(img:np.array, seg:np.array, flow:np.array, text:str=None) -> np.array:
+def disp_flow_as_arrows(img:np.array, seg:np.array, flow:np.array, text:str=None, arrow_scale_factor:int=1) -> np.array:
     img_slices_gray = extract_img_middle_slices(img)
     img_slice_x, img_slice_y, img_slice_z = [cv2.cvtColor(slice.astype(np.float32),cv2.COLOR_GRAY2RGB) for slice in img_slices_gray]
     mask_x_1, mask_y_1, mask_z_1 = extract_img_middle_slices(seg)
     slice_x_flow, slice_y_flow, slice_z_flow = get_2d_flow_sections(flow)
 
-    slice_x_w_arrows = _add_arrows_from_mask_on_2d_img(img_slice_x, mask_x_1, slice_x_flow)
-    slice_y_w_arrows = _add_arrows_from_mask_on_2d_img(img_slice_y, mask_y_1, slice_y_flow)
-    slice_z_w_arrows = _add_arrows_from_mask_on_2d_img(img_slice_z, mask_z_1, slice_z_flow)
+    slice_x_w_arrows = _add_arrows_from_mask_on_2d_img(img_slice_x, mask_x_1, slice_x_flow, arrow_scale_factor)
+    slice_y_w_arrows = _add_arrows_from_mask_on_2d_img(img_slice_y, mask_y_1, slice_y_flow, arrow_scale_factor)
+    slice_z_w_arrows = _add_arrows_from_mask_on_2d_img(img_slice_z, mask_z_1, slice_z_flow, arrow_scale_factor)
 
     all_flow_arrowed_disp = np.concatenate([slice_x_w_arrows, slice_y_w_arrows, slice_z_w_arrows], axis=1)
     if text is not None:
