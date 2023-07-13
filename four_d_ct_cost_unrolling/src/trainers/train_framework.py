@@ -8,7 +8,7 @@ import numpy as np
 from .base_trainer import BaseTrainer
 from ..utils.flow_utils import flow_warp
 from ..utils.metrics_utils import AverageMeter
-from ..utils.visualization_utils import disp_flow_error_colors, disp_flow_as_arrows
+from ..utils.visualization_utils import disp_flow_error_colors
 from ..utils.torch_utils import torch_to_np
 
 
