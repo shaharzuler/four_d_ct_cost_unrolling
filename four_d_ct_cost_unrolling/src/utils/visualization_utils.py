@@ -108,16 +108,18 @@ def _add_flow_contour_arrows(image:np.array, contours:np.array, slice_flow:np.ar
 
 def _get_arrow_start_end_coords(contour:np.array, slice_flow:np.array, arrow_scale_factor:int, equal_arrow_length:bool):
     start = contour[0]
-    delta = slice_flow[:, contour[0,1], contour[0,0]]
+    delta = slice_flow[:, contour[0,1], contour[0,0]] #if equals 0 look for the closest? #TODO
     if equal_arrow_length:
         delta /= np.linalg.norm(delta, 2)
-    end = np.round(start+delta*arrow_scale_factor).astype(start.dtype)
+    end = np.round(start + delta * arrow_scale_factor).astype(start.dtype)
     return start, end
 
 def _add_arrows_from_mask_on_2d_img(img_slice:np.array, mask_slice:np.array, flow_slice:np.array, arrow_scale_factor:int) -> np.array:
     contours = get_mask_contours(mask_slice)        
     img_slice_w_arrows = _add_flow_contour_arrows(img_slice, contours, flow_slice, arrow_scale_factor)
     return img_slice_w_arrows
+
+
 
 def disp_flow_as_arrows(img:np.array, seg:np.array, flow:np.array, text:str=None, arrow_scale_factor:int=1) -> np.array:
     img_slices_gray = extract_img_middle_slices(img)
@@ -128,6 +130,31 @@ def disp_flow_as_arrows(img:np.array, seg:np.array, flow:np.array, text:str=None
     slice_x_w_arrows = _add_arrows_from_mask_on_2d_img(img_slice_x, mask_x_1, slice_x_flow, arrow_scale_factor)
     slice_y_w_arrows = _add_arrows_from_mask_on_2d_img(img_slice_y, mask_y_1, slice_y_flow, arrow_scale_factor)
     slice_z_w_arrows = _add_arrows_from_mask_on_2d_img(img_slice_z, mask_z_1, slice_z_flow, arrow_scale_factor)
+
+    all_flow_arrowed_disp = np.concatenate([slice_x_w_arrows, slice_y_w_arrows, slice_z_w_arrows], axis=1)
+    if text is not None:
+        all_flow_arrowed_disp = cv2.putText(all_flow_arrowed_disp, text, org=(10,20), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.7, color=(1.,0,0), thickness=2)
+    all_flow_arrowed_disp = np.expand_dims(np.transpose(all_flow_arrowed_disp, (2,0,1)), 0)
+    return all_flow_arrowed_disp
+
+
+def _add_sparse_flow_arrows_on_2d_img(img_slice:np.array, flow_slice:np.array, arrow_scale_factor:int) -> np.array:
+    _, x_start_idxs, y_start_idxs = flow_slice.nonzero()
+    deltas = flow_slice[:,x_start_idxs, y_start_idxs] * arrow_scale_factor
+    x_ends_idxs = x_start_idxs + deltas[0,:]
+    y_ends_idxs = y_start_idxs + deltas[1,:]
+    for x_start, y_start, x_end, y_end in zip(x_start_idxs, y_start_idxs, x_ends_idxs, y_ends_idxs):
+        img_slice = cv2.arrowedLine(img_slice,(y_start,x_start),(round(y_end),round(x_end)),color=(0,0,0),thickness=1)
+    return img_slice
+
+def disp_sparse_flow_as_arrows(img:np.array, seg:np.array, flow:np.array, text:str=None, arrow_scale_factor:int=1) -> np.array:
+    img_slices_gray = extract_img_middle_slices(img)
+    img_slice_x, img_slice_y, img_slice_z = [cv2.cvtColor(slice.astype(np.float32),cv2.COLOR_GRAY2RGB) for slice in img_slices_gray]
+    slice_x_flow, slice_y_flow, slice_z_flow = get_2d_flow_sections(flow)
+
+    slice_x_w_arrows = _add_sparse_flow_arrows_on_2d_img(img_slice_x, slice_x_flow, arrow_scale_factor)
+    slice_y_w_arrows = _add_sparse_flow_arrows_on_2d_img(img_slice_y, slice_y_flow, arrow_scale_factor)
+    slice_z_w_arrows = _add_sparse_flow_arrows_on_2d_img(img_slice_z, slice_z_flow, arrow_scale_factor)
 
     all_flow_arrowed_disp = np.concatenate([slice_x_w_arrows, slice_y_w_arrows, slice_z_w_arrows], axis=1)
     if text is not None:

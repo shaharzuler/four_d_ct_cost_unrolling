@@ -90,7 +90,6 @@ class TrainFramework(BaseTrainer):
         epe_map = torch.sqrt(torch.sum(torch.square(flow_diff), dim=0)).mean()
         # epe_map = torch.abs(flow12 - flow12_net).to(self.device).mean()
         error = float(epe_map.mean().item())
-        print(f'Validation error -> {error}')
         self.summary_writer.add_scalar('Validation Error',error,self.i_epoch)
         
         self.add_flow_error_vis_to_tensorboard(flows_pred, flows_gt)

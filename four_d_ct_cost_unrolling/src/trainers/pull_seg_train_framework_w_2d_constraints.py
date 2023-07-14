@@ -4,7 +4,7 @@ from torch.utils.data import Dataset
 
 from .pull_seg_train_framework import PullSegmentationMapTrainFramework
 from ..utils.torch_utils import torch_to_np
-from ..utils.visualization_utils import disp_flow_as_arrows
+from ..utils.visualization_utils import disp_flow_as_arrows, disp_sparse_flow_as_arrows
 from ..utils.metrics_utils import AverageMeter
 
 
@@ -42,7 +42,7 @@ class PullSegmentationMapTrainFrameworkWith2dConstraints(PullSegmentationMapTrai
         img1 = torch_to_np(data["template_image"][0])
         seg = torch_to_np(data["template_seg"][0])
         all_flow_arrowed_before_constraints_disp = disp_flow_as_arrows(img1, seg, torch_to_np(res_dict['unconstrained_flows_fw'][0][0][0]), text="before_constraints")
-        all_flow_arrowed_constraints_disp = disp_flow_as_arrows(img1, seg, torch_to_np(res_dict['two_d_constraints'][0]), text="constraints")
+        all_flow_arrowed_constraints_disp = disp_sparse_flow_as_arrows(img1, seg, torch_to_np(res_dict['two_d_constraints'][0]), text="constraints")
         all_flow_arrowed_after_constraints_disp = disp_flow_as_arrows(img1, seg, pred_flow, text="after_constraints")
         all_flow_arrowed_disp = np.concatenate([all_flow_arrowed_before_constraints_disp, all_flow_arrowed_constraints_disp, all_flow_arrowed_after_constraints_disp], axis=2)
         if len(data["flows_gt"].shape) > 1:
