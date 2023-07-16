@@ -41,10 +41,11 @@ class PullSegmentationMapTrainFrameworkWith2dConstraints(PullSegmentationMapTrai
     def _add_flow_arrows_on_mask_contours_to_tensorboard(self, data:dict[str,torch.tensor], pred_flow:np.array, res_dict:dict[str,torch.tensor]) -> None: 
         img1 = torch_to_np(data["template_image"][0])
         seg = torch_to_np(data["template_seg"][0])
-        all_flow_arrowed_before_constraints_disp = disp_flow_as_arrows(img1, seg, torch_to_np(res_dict['unconstrained_flows_fw'][0][0][0]), text="before_constraints")
-        all_flow_arrowed_constraints_disp = disp_sparse_flow_as_arrows(img1, seg, torch_to_np(res_dict['two_d_constraints'][0]), text="constraints")
-        all_flow_arrowed_after_constraints_disp = disp_flow_as_arrows(img1, seg, pred_flow, text="after_constraints")
-        all_flow_arrowed_disp = np.concatenate([all_flow_arrowed_before_constraints_disp, all_flow_arrowed_constraints_disp, all_flow_arrowed_after_constraints_disp], axis=2)
+        all_flow_arrowed_before_constraints_disp = disp_flow_as_arrows(       img1, seg, torch_to_np(res_dict['unconstrained_flows_fw'][0][0][0]), text="before_constraints")
+        # all_flow_arrowed_constraints_disp_sparse = disp_sparse_flow_as_arrows(img1, seg, torch_to_np(res_dict['two_d_constraints'][0]), text="constraints_as_sparse")
+        all_flow_arrowed_constraints_disp_dense  = disp_flow_as_arrows(       img1, seg, torch_to_np(res_dict['two_d_constraints'][0]), text="constraints")
+        all_flow_arrowed_after_constraints_disp  = disp_flow_as_arrows(       img1, seg, pred_flow, text="after_constraints")
+        all_flow_arrowed_disp = np.concatenate([all_flow_arrowed_before_constraints_disp, all_flow_arrowed_constraints_disp_dense, all_flow_arrowed_after_constraints_disp], axis=2)
         if len(data["flows_gt"].shape) > 1:
             flows_gt = torch_to_np(data["flows_gt"][0])
             gt_flow_arrowed_disp = disp_flow_as_arrows(img1, seg, flows_gt, text="ground truth", arrow_scale_factor=self.args.visualization_arrow_scale_factor)
