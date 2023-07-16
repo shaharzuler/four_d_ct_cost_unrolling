@@ -12,7 +12,7 @@ class PWC3Dw2dConstraints(PWC3D):
         super().__init__(args, upsample, search_range)
         if freeze_backbone:
             self.freeze_all_weights()
-        self.two_d_constraints_network = TwoDConstraintsNetwork(two_d_constraints)
+        self.two_d_constraints_network = TwoDConstraintsNetwork(two_d_constraints, num_conv_planes=args.constraints_nn_num_conv_planes)
 
     def freeze_all_weights(self):
         for i in dir(self):
@@ -31,7 +31,7 @@ class PWC3Dw2dConstraints(PWC3D):
         return res_dict 
         
 class TwoDConstraintsNetwork(nn.Module):
-    def __init__(self, two_d_constraints, num_conv_planes=36): 
+    def __init__(self, two_d_constraints, num_conv_planes): 
         super().__init__()
         self.convs = nn.Sequential(
             conv(in_planes=6, out_planes=num_conv_planes, kernel_size=3, stride=1, dilation=1, isReLU=True),   

@@ -147,7 +147,7 @@ def _add_sparse_flow_arrows_on_2d_img(img_slice:np.array, flow_slice:np.array, a
         img_slice = cv2.arrowedLine(img_slice,(y_start,x_start),(round(y_end),round(x_end)),color=(0,0,0),thickness=1)
     return img_slice
 
-def disp_sparse_flow_as_arrows(img:np.array, seg:np.array, flow:np.array, text:str=None, arrow_scale_factor:int=1) -> np.array:
+def disp_sparse_flow_as_arrows(img:np.array, seg:np.array, flow:np.array, text:str=None, arrow_scale_factor:int=1) -> np.array: # TODO take the with-nans constraints arr and not the arr with zeros.
     img_slices_gray = extract_img_middle_slices(img)
     img_slice_x, img_slice_y, img_slice_z = [cv2.cvtColor(slice.astype(np.float32),cv2.COLOR_GRAY2RGB) for slice in img_slices_gray]
     slice_x_flow, slice_y_flow, slice_z_flow = get_2d_flow_sections(flow)
