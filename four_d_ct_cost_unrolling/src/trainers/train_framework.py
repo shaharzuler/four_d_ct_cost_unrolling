@@ -3,7 +3,8 @@ import time
 from scipy.ndimage.interpolation import zoom as zoom
 import torch
 from torch.utils.data import Dataset
-import numpy as np
+
+import three_d_data_manager
 
 from .base_trainer import BaseTrainer
 from ..utils.flow_utils import flow_warp
@@ -86,15 +87,28 @@ class TrainFramework(BaseTrainer):
     def _synt_validate(self, validation_data): #TODO
         flows_pred = validation_data["flows_pred"]
         flows_gt = validation_data["flows_gt"].to(flows_pred.device)
+        complete_error = self._calc_epe_error(flows_gt, flows_pred)
+        self.summary_writer.add_scalar('Validation Error',complete_error,self.i_epoch)
+        
+        surface_error = self._calc_error_on_surface(flows_gt, flows_pred, validation_data["template_seg"])
+        self.summary_writer.add_scalar('Validation Surface Error', surface_error, self.i_epoch)
+
+        self.add_flow_error_vis_to_tensorboard(flows_pred, flows_gt)
+        
+        return complete_error
+
+    def _calc_error_on_surface(self, flows_gt, flows_pred, template_seg):
+        surface_mask = torch.tensor(three_d_data_manager.extract_segmentation_envelope(torch_to_np(template_seg))).to(flows_gt.device)
+        error = self._calc_epe_error(flows_gt * surface_mask, flows_pred * surface_mask) #TODO normalize?
+        return error
+
+    def _calc_epe_error(self, flows_gt, flows_pred): #TODO normalize?
         flow_diff = flows_gt - flows_pred
         epe_map = torch.sqrt(torch.sum(torch.square(flow_diff), dim=0)).mean()
         # epe_map = torch.abs(flow12 - flow12_net).to(self.device).mean()
         error = float(epe_map.mean().item())
-        self.summary_writer.add_scalar('Validation Error',error,self.i_epoch)
-        
-        self.add_flow_error_vis_to_tensorboard(flows_pred, flows_gt)
-        
         return error
+
     def add_flow_error_vis_to_tensorboard(self, flows_pred, flows_gt) -> None: 
         flow_colors_error_disp = disp_flow_error_colors(torch_to_np(flows_pred[0]), torch_to_np(flows_gt[0]))
         self.summary_writer.add_images(f'flow_error', flow_colors_error_disp, self.i_epoch, dataformats='NCHW')

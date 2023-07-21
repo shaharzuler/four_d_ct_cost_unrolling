@@ -50,6 +50,9 @@ class PullSegmentationMapTrainFramework(TrainFramework):
                 "flows_gt": data["flows_gt"]
                 }
             }
+        if "template_seg" in data.keys():
+            validation_data["synt_validate"]["template_seg"] =  data["template_seg"][0]
+            
         self._validate(validation_data=validation_data)
 
         self._update_loss_dropping(avg_loss)
@@ -78,7 +81,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         warp_w_mask_disp = add_mask(img1_recons_disp[0], torch_to_np(template_seg_map)[0], seg_reconst[0])
         self.summary_writer.add_images(f'warped_seg', warp_w_mask_disp, self.i_epoch, dataformats='NHWC')
 
-    def _add_warped_image_to_tensorboard(self, data:dict, pred_flow:torch.tensor) -> np.array: #TODO validate with 2 different images
+    def _add_warped_image_to_tensorboard(self, data:dict, pred_flow:torch.tensor) -> np.array: 
         img1_recons = flow_warp(data["unlabeled_image"].unsqueeze(0), pred_flow)[0]
         img1_recons_disp = disp_warped_img(torch_to_np(data["unlabeled_image"][0]), torch_to_np(img1_recons[0]), torch_to_np(data["template_image"][0]))
         self.summary_writer.add_images(f'warped_image', img1_recons_disp, self.i_epoch, dataformats='NHWC')

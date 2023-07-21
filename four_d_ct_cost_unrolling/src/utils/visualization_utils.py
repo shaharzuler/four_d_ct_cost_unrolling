@@ -1,8 +1,9 @@
+from typing import Tuple
+import os
+
 import numpy as np
 import flow_vis
-import numpy as np
 import nrrd
-import os
 import cv2
 
 
@@ -76,11 +77,11 @@ def disp_training_fig(img1:np.array, img2:np.array, flow:np.array) -> np.array:
 def get_2d_flow_sections(flow:np.array) -> tuple[np.array]:
     slices_of_x_flow, slices_of_y_flow, slices_of_z_flow = extract_flow_middle_slices(flow)
     slice_x_flow = np.stack((slices_of_y_flow[0], slices_of_z_flow[0]))
-    slice_y_flow = np.stack((slices_of_x_flow[1], slices_of_z_flow[1]))
+    slice_y_flow = np.stack((slices_of_z_flow[1], slices_of_x_flow[1]))
     slice_z_flow = np.stack((slices_of_x_flow[2], slices_of_y_flow[2]))
     return slice_x_flow, slice_y_flow, slice_z_flow
 
-def write_flow_as_nrrd(flow, folderpath='.', filename="flow.nrrd"): 
+def write_flow_as_nrrd(flow, folderpath='.', filename="flow.nrrd") -> None: 
     if not os.path.exists(folderpath):
         os.makedirs(folderpath)
     nrrd.write(os.path.join(folderpath,"x"+filename), flow[0,:,:,:])
@@ -100,41 +101,44 @@ def get_mask_contours(mask:np.array, downsample_factor:int=2) -> np.array:
     contours = contours[::downsample_factor,:,:]
     return contours
 
-def _add_flow_contour_arrows(image:np.array, contours:np.array, slice_flow:np.array, arrow_scale_factor:int, equal_arrow_length:bool=False) -> np.array:
+def _add_flow_contour_arrows(image:np.array, contours:np.array, slice_flow:np.array, arrow_scale_factor:int, slice_name:str, equal_arrow_length:bool=False, ) -> np.array:
     for contour in contours:
-        start, end = _get_arrow_start_end_coords(contour, slice_flow, arrow_scale_factor, equal_arrow_length)
-        image = cv2.arrowedLine(image,(start[0],start[1]),(end[0],end[1]),color=(0,0,0),thickness=1)
+        start, end = _get_arrow_start_end_coords(contour, slice_flow, arrow_scale_factor, slice_name=slice_name, equal_arrow_length=equal_arrow_length)
+        image = cv2.arrowedLine(image, (start[0], start[1]), (end[0], end[1]), color=(0, 0, 0), thickness=1)
+        image = cv2.circle(image, (end[0], end[1]), radius=1, color=(1,1,1), thickness=-1)
+
     return image
 
-def _get_arrow_start_end_coords(contour:np.array, slice_flow:np.array, arrow_scale_factor:int, equal_arrow_length:bool):
+def _get_arrow_start_end_coords(contour:np.array, slice_flow:np.array, arrow_scale_factor:int, slice_name:str, equal_arrow_length:bool) -> Tuple[np.array, np.array]:
     start = contour[0]
-    delta = slice_flow[:, contour[0,1], contour[0,0]] #if equals 0 look for the closest? #TODO
+    delta = slice_flow[:, contour[0,1], contour[0,0]] #if equals 0 look for the closest?
+    if slice_name in ["x", "z"]:
+        delta = delta[::-1]
     if equal_arrow_length:
         delta /= np.linalg.norm(delta, 2)
-    end = np.round(start + delta * arrow_scale_factor).astype(start.dtype)
+    end = np.round(start + delta * arrow_scale_factor).astype(start.dtype) 
     return start, end
 
-def _add_arrows_from_mask_on_2d_img(img_slice:np.array, mask_slice:np.array, flow_slice:np.array, arrow_scale_factor:int) -> np.array:
+def _add_arrows_from_mask_on_2d_img(img_slice:np.array, mask_slice:np.array, flow_slice:np.array, arrow_scale_factor:int, slice_name:str) -> np.array:
     contours = get_mask_contours(mask_slice)        
-    img_slice_w_arrows = _add_flow_contour_arrows(img_slice, contours, flow_slice, arrow_scale_factor)
+    img_slice_w_arrows = _add_flow_contour_arrows(img_slice, contours, flow_slice, slice_name=slice_name, arrow_scale_factor=arrow_scale_factor)
     return img_slice_w_arrows
-
 
 
 def disp_flow_as_arrows(img:np.array, seg:np.array, flow:np.array, text:str=None, arrow_scale_factor:int=1) -> np.array:
     img_slices_gray = extract_img_middle_slices(img)
     img_slice_x, img_slice_y, img_slice_z = [cv2.cvtColor(slice.astype(np.float32),cv2.COLOR_GRAY2RGB) for slice in img_slices_gray]
-    mask_x_1, mask_y_1, mask_z_1 = extract_img_middle_slices(seg)
+    mask_x, mask_y, mask_z = extract_img_middle_slices(seg)
     slice_x_flow, slice_y_flow, slice_z_flow = get_2d_flow_sections(flow)
 
-    slice_x_w_arrows = _add_arrows_from_mask_on_2d_img(img_slice_x, mask_x_1, slice_x_flow, arrow_scale_factor)
-    slice_y_w_arrows = _add_arrows_from_mask_on_2d_img(img_slice_y, mask_y_1, slice_y_flow, arrow_scale_factor)
-    slice_z_w_arrows = _add_arrows_from_mask_on_2d_img(img_slice_z, mask_z_1, slice_z_flow, arrow_scale_factor)
+    slice_x_w_arrows = _add_arrows_from_mask_on_2d_img(img_slice_x, mask_x, slice_x_flow, arrow_scale_factor, slice_name="x")
+    slice_y_w_arrows = _add_arrows_from_mask_on_2d_img(img_slice_y, mask_y, slice_y_flow, arrow_scale_factor, slice_name="y")
+    slice_z_w_arrows = _add_arrows_from_mask_on_2d_img(img_slice_z, mask_z, slice_z_flow, arrow_scale_factor, slice_name="z")
 
     all_flow_arrowed_disp = np.concatenate([slice_x_w_arrows, slice_y_w_arrows, slice_z_w_arrows], axis=1)
     if text is not None:
-        all_flow_arrowed_disp = cv2.putText(all_flow_arrowed_disp, text, org=(10,20), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.7, color=(1.,0,0), thickness=2)
-    all_flow_arrowed_disp = np.expand_dims(np.transpose(all_flow_arrowed_disp, (2,0,1)), 0)
+        all_flow_arrowed_disp = cv2.putText(all_flow_arrowed_disp, text, org=(10, 20), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.7, color=(1., 0, 0), thickness=2)
+    all_flow_arrowed_disp = np.expand_dims(np.transpose(all_flow_arrowed_disp, (2, 0, 1)), 0)
     return all_flow_arrowed_disp
 
 
@@ -190,7 +194,7 @@ def disp_flow_error_colors(flows_pred:np.array, flows_gt:np.array) -> np.array:
     diff = flows_pred - flows_gt
     abs_diff_disp = _disp_single_flow_colors(diff, text="error")
     abs_diff = np.abs(diff)
-    abs_flow_diff = np.sum(np.dstack(get_2d_flow_sections(abs_diff)), axis=0) #clip? TODO #TODO maybe add epe map here
+    abs_flow_diff = np.sum(np.dstack(get_2d_flow_sections(abs_diff)), axis=0) #clip?  #TODO maybe add epe map here
     abs_flow_diff_rgb = cv2.cvtColor(abs_flow_diff.astype(np.float32), cv2.COLOR_GRAY2RGB)
     abs_flow_diff_rgb = cv2.putText(abs_flow_diff_rgb, "absolute error", org=(10,20), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.7, color=(1.,0,0), thickness=2)
     abs_flow_diff_rgb = np.transpose(abs_flow_diff_rgb, (2,0,1))
