@@ -76,14 +76,14 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         self.summary_writer.add_images('sample_flows', flow_arrowed_disp, self.i_epoch, dataformats='NCHW')
 
     def _add_warped_seg_mask_to_tensorboard(self, data:dict, pred_flow:torch.tensor, img1_recons_disp:np.array) -> None:
-        template_seg_map = data["template_seg"]
-        seg_reconst = torch_to_np(flow_warp(template_seg_map.unsqueeze(0).float(), pred_flow, mode="nearest")).astype(bool)[0]
-        warp_w_mask_disp = add_mask(img1_recons_disp[0], torch_to_np(template_seg_map)[0], seg_reconst[0])
+        unlabeled_seg_map = data["unlabeled_seg"]
+        seg_reconst = torch_to_np(flow_warp(unlabeled_seg_map.unsqueeze(0).float(), pred_flow, mode="nearest")).astype(bool)[0]
+        warp_w_mask_disp = add_mask(img1_recons_disp[0], torch_to_np(unlabeled_seg_map)[0], seg_reconst[0])
         self.summary_writer.add_images(f'warped_seg', warp_w_mask_disp, self.i_epoch, dataformats='NHWC')
 
     def _add_warped_image_to_tensorboard(self, data:dict, pred_flow:torch.tensor) -> np.array: 
         img1_recons = flow_warp(data["unlabeled_image"].unsqueeze(0), pred_flow)[0]
-        img1_recons_disp = disp_warped_img(torch_to_np(data["unlabeled_image"][0]), torch_to_np(img1_recons[0]), torch_to_np(data["template_image"][0]))
+        img1_recons_disp = disp_warped_img(torch_to_np(data["template_image"][0]), torch_to_np(img1_recons[0]), torch_to_np(data["unlabeled_image"][0]))
         self.summary_writer.add_images(f'warped_image', img1_recons_disp, self.i_epoch, dataformats='NHWC')
         
         return img1_recons_disp

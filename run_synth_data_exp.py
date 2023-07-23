@@ -5,12 +5,12 @@ from four_d_ct_cost_unrolling import overfit_backbone, infer_backbone, overfit_w
 from four_d_ct_cost_unrolling import get_default_backbone_config, get_default_w_constraints_config, get_checkpoints_path
 
 
-two_d_constraints_path = r"/home/shahar/cardio_corr/outputs/outputs_20230719_190750/constraints.npy"
-template_synthetic_img_path   = r'/home/shahar/cardio_corr/my_packages/cardio_volume_skewer_project/cardio_volume_skewer/outputs/self_validation_params_exp_onlyz/thetas_0.0_0.0_rs_0.5_0.5_h_1.0/image_skewed_thetas_0.0_0.0_rs_0.5_0.5_h_1.0.npy'#'/home/shahar/cardio_corr/outputs/synthetic_dataset9/thetas_0.0_0.0_rs_0.5_0.5_h_1.0/image_skewed_thetas_0.0_0.0_rs_0.5_0.5_h_1.0.npy'
-unlabeled_synthetic_img_path  = r'/home/shahar/cardio_corr/my_packages/cardio_volume_skewer_project/cardio_volume_skewer/outputs/self_validation_params_exp_onlyz/thetas_0.0_0.0_rs_0.5_0.5_h_1.0/image_orig_thetas_0.0_0.0_rs_0.5_0.5_h_1.0.npy'
-template_synthetic_mask_path  = r'/home/shahar/cardio_corr/my_packages/cardio_volume_skewer_project/cardio_volume_skewer/outputs/self_validation_params_exp_onlyz/thetas_0.0_0.0_rs_0.5_0.5_h_1.0/mask_skewed_thetas_0.0_0.0_rs_0.5_0.5_h_1.0.npy'#'/home/shahar/cardio_corr/outputs/synthetic_dataset9/thetas_0.0_0.0_rs_0.5_0.5_h_1.0/mask_skewed_thetas_0.0_0.0_rs_0.5_0.5_h_1.0.npy'
-unlabeled_synthetic_mask_path = r'/home/shahar/cardio_corr/my_packages/cardio_volume_skewer_project/cardio_volume_skewer/outputs/self_validation_params_exp_onlyz/thetas_0.0_0.0_rs_0.5_0.5_h_1.0/mask_orig_thetas_0.0_0.0_rs_0.5_0.5_h_1.0.npy'
-synthetic_flow_path           = r'/home/shahar/cardio_corr/my_packages/cardio_volume_skewer_project/cardio_volume_skewer/outputs/self_validation_params_exp_onlyz/thetas_0.0_0.0_rs_0.5_0.5_h_1.0/flow_for_image_thetas_0.0_0.0_rs_0.5_0.5_h_1.0.npy'#'/home/shahar/cardio_corr/outputs/synthetic_dataset9/thetas_0.0_0.0_rs_0.5_0.5_h_1.0/flow_for_image_thetas_0.0_0.0_rs_0.5_0.5_h_1.0.npy' #  r'/home/shahar/cardio_corr/my_packages/four_d_ct_cost_unrolling_project/onlyx5.npy'#
+two_d_constraints_path = r"two_d_constraints_path /home/shahar/cardio_corr/outputs/outputs_20230723_130041/constraints.npy"
+template_synthetic_img_path   = r"/home/shahar/cardio_corr/outputs/synthetic_dataset19/thetas_40.0_-40.0_rs_0.5_0.5_h_0.6/image_skewed_thetas_40.0_-40.0_rs_0.5_0.5_h_0.6.npy"
+unlabeled_synthetic_img_path  = r"/home/shahar/cardio_corr/outputs/synthetic_dataset19/thetas_40.0_-40.0_rs_0.5_0.5_h_0.6/image_orig_thetas_40.0_-40.0_rs_0.5_0.5_h_0.6.npy"
+template_synthetic_mask_path  = r"/home/shahar/cardio_corr/outputs/synthetic_dataset19/thetas_40.0_-40.0_rs_0.5_0.5_h_0.6/mask_skewed_thetas_40.0_-40.0_rs_0.5_0.5_h_0.6.npy"
+unlabeled_synthetic_mask_path = r"/home/shahar/cardio_corr/outputs/synthetic_dataset19/thetas_40.0_-40.0_rs_0.5_0.5_h_0.6/mask_orig_thetas_40.0_-40.0_rs_0.5_0.5_h_0.6.npy"
+synthetic_flow_path           = r"/home/shahar/cardio_corr/outputs/synthetic_dataset19/thetas_40.0_-40.0_rs_0.5_0.5_h_0.6/flow_for_image_thetas_40.0_-40.0_rs_0.5_0.5_h_0.6.npy"
 
 
 args = get_default_backbone_config()
