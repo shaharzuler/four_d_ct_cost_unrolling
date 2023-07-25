@@ -1,3 +1,4 @@
+from typing import List, Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -19,7 +20,7 @@ class UnFlowLoss(nn.modules.Module):
 
         return self.args.w_admm * self.args.admm_rho / 2 * sum([l.mean() for l in loss])
 
-    def loss_photometric(self, img1_scaled:torch.tensor, img1_recons:torch.tensor) -> torch.tensor:
+    def loss_photometric(self, img1_scaled:torch.Tensor, img1_recons:torch.Tensor) -> torch.Tensor:
         loss = []
 
         if self.args.w_l1 > 0:
@@ -36,13 +37,13 @@ class UnFlowLoss(nn.modules.Module):
 
         return sum([l.mean() for l in loss])
 
-    def loss_smooth(self, flow:torch.tensor, vox_dim:torch.tensor) -> torch.tensor:
+    def loss_smooth(self, flow:torch.Tensor, vox_dim:torch.Tensor) -> torch.Tensor:
         func_smooth = smooth_grad_1st
         loss = []
         loss += [func_smooth(flow, vox_dim)]
         return sum([l.mean() for l in loss])
 
-    def forward(self, output:list, img1:torch.tensor, img2:torch.tensor, aux:tuple, vox_dim:torch.tensor) -> tuple[torch.tensor]:
+    def forward(self, output:List, img1:torch.Tensor, img2:torch.Tensor, aux:Tuple, vox_dim:torch.Tensor) -> Tuple[torch.Tensor]:
         vox_dim = vox_dim.squeeze(0)
 
         pyramid_flows = output

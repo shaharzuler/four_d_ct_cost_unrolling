@@ -1,4 +1,4 @@
-from typing import OrderedDict
+from typing import Dict, OrderedDict, Tuple
 import torch
 import shutil
 import torch.nn.functional as F
@@ -14,7 +14,7 @@ def weight_parameters(module):
 def bias_parameters(module):
     return [param for name, param in module.named_parameters() if 'bias' in name]
 
-def load_checkpoint(model_path:str) -> tuple[int,OrderedDict]:
+def load_checkpoint(model_path:str) -> Tuple[int,OrderedDict]:
     weights = torch.load(model_path, map_location={'cuda:0': 'cpu'})
     epoch = None
     if 'epoch' in weights:
@@ -25,19 +25,19 @@ def load_checkpoint(model_path:str) -> tuple[int,OrderedDict]:
         state_dict = weights
     return epoch, state_dict
 
-def save_checkpoint(save_dir:str, states:dict, prefix:str, is_best:bool, filename:str='ckpt.pth.tar') -> None:
+def save_checkpoint(save_dir:str, states:Dict, prefix:str, is_best:bool, filename:str='ckpt.pth.tar') -> None:
     file_path = os.path.join(save_dir, f'{prefix}_{filename}')
     Path(save_dir).mkdir(parents=True, exist_ok=True)
     torch.save(states, file_path)
     if is_best:
         shutil.copyfile(file_path, os.path.join(save_dir, f'{prefix}_model_best.pth.tar'))
 
-def rescale_mask_tensor(mask:torch.tensor, scale_factor:tuple) -> torch.tensor:
+def rescale_mask_tensor(mask:torch.Tensor, scale_factor:Tuple) -> torch.Tensor:
     if scale_factor != (1, 1, 1):
         mask_scaled = F.interpolate(mask.float(), scale_factor=scale_factor, mode='nearest').bool()
     else:
         mask_scaled = mask
     return mask_scaled
 
-def torch_to_np(tensor:torch.tensor) -> np.array:
+def torch_to_np(tensor:torch.Tensor) -> np.ndarray:
     return tensor.detach().cpu().numpy()

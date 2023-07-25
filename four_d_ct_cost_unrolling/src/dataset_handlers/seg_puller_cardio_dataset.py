@@ -30,7 +30,7 @@ class SegmentationPullerCardioDataset(Dataset):
 
         self.sample_dict = asdict(self.sample)
 
-    def min_max_norm(self, img:torch.tensor, min_:float, max_:float) -> torch.tensor:
+    def min_max_norm(self, img:torch.Tensor, min_:float, max_:float) -> torch.Tensor:
         return (img-min_)/(max_-min_)
 
 
@@ -52,7 +52,7 @@ class SegmentationPullerCardioDatasetWithConstraints(SegmentationPullerCardioDat
         self.sample.two_d_constraints_mask = ~np.isnan(self.sample.two_d_constraints_with_nans)[0] 
         self.sample_dict = asdict(self.sample)
 
-    def preprocess_2d_constraints(self, two_d_constraints:np.array) -> np.array:
+    def preprocess_2d_constraints(self, two_d_constraints:np.ndarray) -> np.ndarray:
         """ Here we can add more preprocessing such as blurring, thickening etc """
         return two_d_constraints
    

@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Tuple, Union
 import torch
 import torch.nn as nn
 import numpy as np
@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 from three_d_data_manager import extract_segmentation_envelope
 
-def _mesh_grid(B:int, H:int, W:int, D:int) -> torch.tensor:
+def _mesh_grid(B:int, H:int, W:int, D:int) -> torch.Tensor:
     # batches not implented
     x = torch.arange(H)
     y = torch.arange(W)
@@ -16,7 +16,7 @@ def _mesh_grid(B:int, H:int, W:int, D:int) -> torch.tensor:
     mesh = mesh.unsqueeze(0)
     return mesh.repeat([B,1,1,1,1])
 
-def _norm_grid(v_grid:torch.tensor) -> torch.tensor:
+def _norm_grid(v_grid:torch.Tensor) -> torch.Tensor:
     _, _, H, W, D = v_grid.size()
 
     # scale grid to [-1,1]
@@ -26,7 +26,7 @@ def _norm_grid(v_grid:torch.tensor) -> torch.tensor:
     v_grid_norm[:, 2, :, :] = 2.0 * v_grid[:, 2, :, :] / (H - 1) - 1.0
     return v_grid_norm.permute(0, 2, 3, 4, 1)
 
-def flow_warp(img2:torch.tensor, flow12:torch.tensor, pad:str='border', mode:str='bilinear') -> torch.tensor:
+def flow_warp(img2:torch.Tensor, flow12:torch.Tensor, pad:str='border', mode:str='bilinear') -> torch.Tensor:
     assert (img2.shape[-3:] == flow12.shape[-3:])
     B, _, H, W, D = flow12.size()
     flow12 = torch.flip(flow12, [1])
@@ -37,21 +37,21 @@ def flow_warp(img2:torch.tensor, flow12:torch.tensor, pad:str='border', mode:str
 
     return im1_recons
 
-def _get_constraints_closest_indices(constraints_indices:np.array, envelope_indices:np.array) -> np.array:
+def _get_constraints_closest_indices(constraints_indices:np.ndarray, envelope_indices:np.ndarray) -> np.ndarray:
     neigh = NearestNeighbors(n_neighbors=1)
     neigh.fit(constraints_indices)
     nn_ind = neigh.kneighbors(envelope_indices, return_distance=False) # shape (N2, 1)
     closest_constraints_indices = constraints_indices[nn_ind][:,0,:] # shape (N2, 3)
     return closest_constraints_indices
 
-def _restore_constraints(constraints_arr:np.array, envelope_indices:np.array, closest_constraints_indices:np.array) -> np.array:
+def _restore_constraints(constraints_arr:np.ndarray, envelope_indices:np.ndarray, closest_constraints_indices:np.ndarray) -> np.ndarray:
     restored_constraints_arr = np.empty(constraints_arr.shape)
     restored_constraints_arr[:] = np.nan
     for axis in range(3):
         restored_constraints_arr[envelope_indices[:,0],envelope_indices[:,1],envelope_indices[:,2],axis] = constraints_arr[closest_constraints_indices[:,0],closest_constraints_indices[:,1],closest_constraints_indices[:,2],axis]
     return restored_constraints_arr
 
-def attach_flow_between_segs(constraints_arr:np.array, seg_arr:np.array) -> np.array:
+def attach_flow_between_segs(constraints_arr:np.ndarray, seg_arr:np.ndarray) -> np.ndarray:
     """
     Takes 2d constraints based on one segmentation map (for example a smooth seg map),
     and moves it to each index closest neighbour on the second segmentation map.
@@ -63,7 +63,7 @@ def attach_flow_between_segs(constraints_arr:np.array, seg_arr:np.array) -> np.a
     restored_constraints_arr = _restore_constraints(constraints_arr, envelope_indices, closest_constraints_indices)
     return restored_constraints_arr
 
-def rescale_flow_tensor(flow_tensor:torch.tensor, target_shape:tuple[int,int,int,int,int], mode:str="area", return_scale_factor=False) -> Union[torch.tensor,tuple[torch.tensor, tuple]]:
+def rescale_flow_tensor(flow_tensor:torch.Tensor, target_shape:Tuple[int,int,int,int,int], mode:str="area", return_scale_factor=False) -> Union[torch.Tensor,Tuple[torch.Tensor, Tuple]]:
     """
     flow is a 5D arr shape n,3,x,y,z
     """
@@ -77,7 +77,7 @@ def rescale_flow_tensor(flow_tensor:torch.tensor, target_shape:tuple[int,int,int
         return flow_tensor, tuple(scale_factor)
     return flow_tensor
 
-def xyz3_to_3xyz(flow:np.array) -> np.array:
+def xyz3_to_3xyz(flow:np.ndarray) -> np.ndarray:
     return np.transpose(flow, (3,0,1,2))
 
 def create_and_save_backward_2d_constraints(two_d_constraints_path:str) -> str:

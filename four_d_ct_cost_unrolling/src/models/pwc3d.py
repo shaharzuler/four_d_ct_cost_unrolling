@@ -1,4 +1,5 @@
 import math
+from typing import Dict
 
 import torch
 import torch.nn as nn
@@ -9,7 +10,7 @@ from .admm.admm import ADMMSolverBlock, MaskGenerator
 from ..utils.flow_utils import rescale_flow_tensor, flow_warp
 
 class PWC3D(nn.Module):
-    def __init__(self, args:dict, upsample:bool=True, search_range:int=4): 
+    def __init__(self, args:Dict, upsample:bool=True, search_range:int=4): 
         super(PWC3D, self).__init__()
         self.search_range = search_range
         self.num_chs = [1, 16, 32, 64, 96, 128, 192]
@@ -57,7 +58,7 @@ class PWC3D(nn.Module):
             if layer.bias is not None:
                 nn.init.constant_(layer.bias, 0)
 
-    def forward(self, data:dict[str,torch.tensor]) -> dict[str,torch.tensor]:
+    def forward(self, data:Dict[str,torch.tensor]) -> Dict[str,torch.tensor]:
         x1, x2, vox_dim = data["img1"], data["img2"], data["vox_dim"]
         self._calculate_pyramid_reduction(x1)
         x1_p = self.feature_pyramid_extractor(x1) + [x1] 

@@ -3,6 +3,7 @@ import datetime
 from abc import abstractmethod
 import pathlib
 import json
+from typing import Dict
 
 import torch
 from torch.utils.tensorboard import SummaryWriter
@@ -20,7 +21,7 @@ class BaseTrainer:
     Base class for all trainers
     """
 
-    def __init__(self, train_set:Dataset, model:torch.nn.Module, losses:dict[str,torch.nn.modules.Module], args:dict): 
+    def __init__(self, train_set:Dataset, model:torch.nn.Module, losses:Dict[str,torch.nn.modules.Module], args:Dict): 
         self.train_set = train_set
         self.args = args
         self.model = model

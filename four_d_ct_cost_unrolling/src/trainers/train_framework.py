@@ -1,4 +1,5 @@
 import time
+from typing import Dict, List, Tuple
 
 from scipy.ndimage.interpolation import zoom as zoom
 import torch
@@ -15,31 +16,31 @@ from ..utils.torch_utils import torch_to_np
 
 
 class TrainFramework(BaseTrainer):
-    def __init__(self, train_loader:Dataset, model:torch.nn.Module, loss_func:dict[str,torch.nn.modules.Module], args:dict):
+    def __init__(self, train_loader:Dataset, model:torch.nn.Module, loss_func:Dict[str,torch.nn.modules.Module], args:Dict):
         super(TrainFramework, self).__init__(train_loader, model, loss_func, args)
 
-    def _compute_loss_terms(self, img1:torch.tensor, img2:torch.tensor, vox_dim:torch.tensor, flows:list[torch.tensor], aux:tuple, _:any, __:any) -> tuple[torch.tensor,tuple[torch.tensor]]: 
+    def _compute_loss_terms(self, img1:torch.Tensor, img2:torch.Tensor, vox_dim:torch.Tensor, flows:List[torch.Tensor], aux:Tuple, _:any, __:any) -> Tuple[torch.Tensor,Tuple[torch.Tensor]]: 
         loss, l_ph, l_sm, flow_mean = self.loss_modules['loss_module'](flows, img1, img2, aux, vox_dim)
         return loss, (l_ph, l_sm, flow_mean)
 
-    def _post_process_model_output(self, res_dict:dict[str,torch.tensor]) -> tuple[list[torch.tensor],tuple]:
+    def _post_process_model_output(self, res_dict:Dict[str,torch.Tensor]) -> Tuple[List[torch.Tensor],Tuple]:
         flows = res_dict['flows_fw'][0]
         aux = res_dict['flows_fw'][1]
         return flows, aux
 
-    def update_to_tensorboard(self, key_meter_names:list[str], key_meters:AverageMeter) -> None:
+    def update_to_tensorboard(self, key_meter_names:List[str], key_meters:AverageMeter) -> None:
         if self.rank ==0 and self.i_iter % self.args.record_freq == 0:
             for v, name in zip(key_meters.val, key_meter_names):
                 self.summary_writer.add_scalar('Train_' + name, v, self.i_iter)
 
-    def _optimize(self, loss:torch.tensor) -> None:
+    def _optimize(self, loss:torch.Tensor) -> None:
         loss = loss.mean()
         self.optimizer.zero_grad()
         self.scaler.scale(loss).backward()
         self.scaler.step(self.optimizer)
         self.scaler.update()
         
-    def _init_epoch(self) -> tuple[AverageMeter,AverageMeter,list,AverageMeter,float]:
+    def _init_epoch(self) -> Tuple[AverageMeter,AverageMeter,List,AverageMeter,float]:
         avg_meter_batch_time = AverageMeter()
         avg_meter_data_time = AverageMeter()
         self.model.train()
@@ -48,12 +49,12 @@ class TrainFramework(BaseTrainer):
         end = time.time()
         return avg_meter_batch_time, avg_meter_data_time, key_meter_names, key_meters, end
 
-    def _init_key_meters(self) -> tuple[list, AverageMeter]:
+    def _init_key_meters(self) -> Tuple[List, AverageMeter]:
         key_meter_names = ['Loss', 'l_ph', 'l_sm', "flow_mean"]
         key_meters = AverageMeter(i=len(key_meter_names), print_precision=4, names=key_meter_names)
         return key_meter_names, key_meters
 
-    def _prepare_data(self, data:dict) -> dict:
+    def _prepare_data(self, data:Dict) -> Dict:
         img1, img2 = [im.unsqueeze(0).float().to(self.rank) for im in [data["template_image"], data["unlabeled_image"]]]
         vox_dim = torch.tensor([[1,1,1.]], dtype=torch.float64).to(self.rank)
         
@@ -66,7 +67,7 @@ class TrainFramework(BaseTrainer):
         return data 
             
     @torch.no_grad()
-    def _validate(self, validation_data:dict) -> None:
+    def _validate(self, validation_data:Dict) -> None:
         if hasattr(self.args,'dump_disp') and self.args.dump_disp:
             return self._dumpt_disp_fields()
         else:
@@ -77,11 +78,11 @@ class TrainFramework(BaseTrainer):
             if "basic" in self.args.valid_type: 
                 self._validate_self(validation_data["validate_self"])
 
-    def _validate_basic(self, validate_data:dict) -> None: # optional - also validate by iou
+    def _validate_basic(self, validate_data:Dict) -> None: # optional - also validate by iou
         if self.i_iter > self.args.save_iter:
             self._save_model(validate_data["avg_loss"], name=self.model_suffix) 
 
-    def _validate_self(self, validate_self_data:dict) -> None:
+    def _validate_self(self, validate_self_data:Dict) -> None:
         self._validate_basic(validate_self_data) 
 
     def _synt_validate(self, validation_data): #TODO

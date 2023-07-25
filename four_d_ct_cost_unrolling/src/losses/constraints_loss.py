@@ -1,3 +1,4 @@
+from typing import List
 import torch.nn as nn
 import torch
 
@@ -9,7 +10,7 @@ class ConstraintsLoss(nn.modules.Module):
         super(ConstraintsLoss, self).__init__() 
         self.args = args
 
-    def forward(self, pred_flow:list[torch.tensor], constraints:torch.tensor, mask:torch.tensor, mode:str='l1') -> torch.tensor: 
+    def forward(self, pred_flow:List[torch.Tensor], constraints:torch.Tensor, mask:torch.Tensor, mode:str='l1') -> torch.Tensor: 
         loss = 0.0
         for flow, scale in zip(pred_flow, self.args.w_constraints_scales):
             flow = flow[:,:3,:,:,:]

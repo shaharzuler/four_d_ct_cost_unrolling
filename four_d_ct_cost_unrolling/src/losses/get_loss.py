@@ -1,9 +1,10 @@
+from typing import Dict
 import torch.nn as nn
 
 from .un_flow_loss import UnFlowLoss
 from .constraints_loss import ConstraintsLoss
 
-def get_loss(args:dict) -> dict[str,nn.modules.Module]:
+def get_loss(args:Dict) -> Dict[str,nn.modules.Module]:
     if "unflow" in args.loss:
         losses = {"loss_module" : UnFlowLoss(args)}
 

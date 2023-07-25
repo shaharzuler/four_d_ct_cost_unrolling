@@ -39,7 +39,7 @@ def TernaryLoss(img, img_warp, max_distance=1): #NOT TESTED
     return dist * mask
 
 
-def smooth_grad_1st(flo:torch.tensor, vox_dims:torch.tensor) -> torch.tensor: 
+def smooth_grad_1st(flo:torch.Tensor, vox_dims:torch.Tensor) -> torch.Tensor: 
     weights_x = 1
     weights_y = 1
     weights_z = 1
@@ -53,7 +53,7 @@ def smooth_grad_1st(flo:torch.tensor, vox_dims:torch.tensor) -> torch.tensor:
     return loss_x.mean() / 3. + loss_y.mean() / 3. + loss_z.mean() / 3.
 
 
-def SSIM(x:torch.tensor, y:torch.tensor, md=1) -> torch.tensor:
+def SSIM(x:torch.Tensor, y:torch.Tensor, md=1) -> torch.Tensor:
     patch_size = 2 * md + 1
     C1 = 0.01 ** 2
     C2 = 0.03 ** 2

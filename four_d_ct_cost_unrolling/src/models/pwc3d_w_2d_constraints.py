@@ -1,3 +1,4 @@
+from typing import Dict, List, Tuple
 import torch
 import torch.nn as nn
 import numpy as np
@@ -8,7 +9,7 @@ from ..utils.flow_utils import rescale_flow_tensor
 
 
 class PWC3Dw2dConstraints(PWC3D):
-    def __init__(self, args:dict, two_d_constraints:np.array, upsample:bool=True, search_range:int=4, freeze_backbone:bool=True):
+    def __init__(self, args:Dict, two_d_constraints:np.ndarray, upsample:bool=True, search_range:int=4, freeze_backbone:bool=True):
         super().__init__(args, upsample, search_range)
         if freeze_backbone:
             self.freeze_all_weights()
@@ -22,7 +23,7 @@ class PWC3Dw2dConstraints(PWC3D):
                 eval("self."+i).to(torch.device('cpu'))
                 
 
-    def forward(self, data:dict[str,torch.tensor]) -> dict[str,torch.tensor]: 
+    def forward(self, data:Dict[str,torch.tensor]) -> Dict[str,torch.tensor]: 
         res_dict = super().forward(data)
         constrained_flows = self.two_d_constraints_network(res_dict["flows_fw"])
         res_dict["unconstrained_flows_fw"] = res_dict["flows_fw"]
@@ -41,7 +42,7 @@ class TwoDConstraintsNetwork(nn.Module):
         self.device_ = None
        
 
-    def forward(self, flows:tuple[list[torch.tensor],dict[str,list]]) -> tuple[list[torch.tensor],dict[str,list]]:
+    def forward(self, flows:Tuple[List[torch.Tensor],Dict[str,List]]) -> Tuple[list[torch.tensor],Dict[str,List]]:
         if self.device_ is None:
             self.device_ = flows[0][0].device # assuming all flow pyramid levels are on the same device
             self.two_d_constraints = self.two_d_constraints.to(self.device_) 
