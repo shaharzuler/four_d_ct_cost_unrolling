@@ -74,11 +74,11 @@ class BaseTrainer:
         self.model = self._init_model(self.model)
 
     def _get_dataloader(self, train_set:torch.utils.data.Dataset) -> torch.utils.data.dataloader.DataLoader:
-        train_sampler = torch.utils.data.distributed.DistributedSampler(
+        train_sampler = torch.utils.data.distributed.DistributedSampler( #TODO switch to proper sampler
     	                    train_set,
                             shuffle=False,
     	                    num_replicas = self.args.n_gpu,
-    	                    rank=self.rank)
+    	                    rank=0)
         train_loader = torch.utils.data.DataLoader(
                             dataset=train_set,
                             batch_size=self.args.batch_size,
