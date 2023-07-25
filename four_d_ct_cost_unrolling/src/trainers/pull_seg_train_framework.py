@@ -89,7 +89,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         
         return img1_recons_disp
 
-    def _add_orig_images_to_tensorboard(self, data:Dict[str:torch.Tensor], pred_flow:torch.Tensor) -> None:
+    def _add_orig_images_to_tensorboard(self, data:Dict[str,torch.Tensor], pred_flow:torch.Tensor) -> None:
         imgs_disp = disp_training_fig(torch_to_np(data["template_image"][0]), torch_to_np(data["unlabeled_image"][0]), torch_to_np(pred_flow[0]))
         self.summary_writer.add_images(f'original_images+pred_flow', imgs_disp, self.i_epoch, dataformats='NCHW')
 
