@@ -42,7 +42,7 @@ class TwoDConstraintsNetwork(nn.Module):
         self.device_ = None
        
 
-    def forward(self, flows:Tuple[List[torch.Tensor],Dict[str,List]]) -> Tuple[list[torch.tensor],Dict[str,List]]:
+    def forward(self, flows:Tuple[List[torch.Tensor],Dict[str,List]]) -> Tuple[list[torch.Tensor],Dict[str,List]]:
         if self.device_ is None:
             self.device_ = flows[0][0].device # assuming all flow pyramid levels are on the same device
             self.two_d_constraints = self.two_d_constraints.to(self.device_) 
