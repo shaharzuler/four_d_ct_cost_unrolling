@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 import numpy as np
 import torch
 from torch.utils.data import Dataset
@@ -25,7 +25,7 @@ class PullSegmentationMapTrainFrameworkWith2dConstraints(PullSegmentationMapTrai
         key_meters = AverageMeter(i=len(key_meter_names), print_precision=4, names=key_meter_names)
         return key_meter_names, key_meters
 
-    def _compute_loss_terms(self, img1:torch.Tensor, img2:torch.Tensor, vox_dim:torch.Tensor, flows:List[torch.Tensor], aux:Tuple, data:Dict, __:any) -> Tuple[torch.Tensor,tuple[torch.Tensor]]: 
+    def _compute_loss_terms(self, img1:torch.Tensor, img2:torch.Tensor, vox_dim:torch.Tensor, flows:List[torch.Tensor], aux:Tuple, data:Dict, __:Any) -> Tuple[torch.Tensor,tuple[torch.Tensor]]: 
         loss, (l_ph, l_sm, flow_mean) = super()._compute_loss_terms(img1, img2, vox_dim, flows, aux, None, None)
         l_constraints = self._get_constraints_loss(flows, data)
         loss += l_constraints

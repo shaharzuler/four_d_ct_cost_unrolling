@@ -1,5 +1,5 @@
 import time
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 from scipy.ndimage.interpolation import zoom as zoom
 import torch
@@ -19,7 +19,7 @@ class TrainFramework(BaseTrainer):
     def __init__(self, train_loader:Dataset, model:torch.nn.Module, loss_func:Dict[str,torch.nn.modules.Module], args:Dict):
         super(TrainFramework, self).__init__(train_loader, model, loss_func, args)
 
-    def _compute_loss_terms(self, img1:torch.Tensor, img2:torch.Tensor, vox_dim:torch.Tensor, flows:List[torch.Tensor], aux:Tuple, _:any, __:any) -> Tuple[torch.Tensor,Tuple[torch.Tensor]]: 
+    def _compute_loss_terms(self, img1:torch.Tensor, img2:torch.Tensor, vox_dim:torch.Tensor, flows:List[torch.Tensor], aux:Tuple, _:Any, __:Any) -> Tuple[torch.Tensor,Tuple[torch.Tensor]]: 
         loss, l_ph, l_sm, flow_mean = self.loss_modules['loss_module'](flows, img1, img2, aux, vox_dim)
         return loss, (l_ph, l_sm, flow_mean)
 
