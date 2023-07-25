@@ -17,6 +17,6 @@ setup(
     url='https://github.com/shaharzuler/four_d_ct_cost_unrolling',
     classifiers=[
         'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.8',
     ],
 )
