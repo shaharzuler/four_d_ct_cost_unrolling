@@ -29,7 +29,7 @@ class TrainFramework(BaseTrainer):
         return flows, aux
 
     def update_to_tensorboard(self, key_meter_names:List[str], key_meters:AverageMeter) -> None:
-        if self.rank ==0 and self.i_iter % self.args.record_freq == 0:
+        if self.i_iter % self.args.record_freq == 0:
             for v, name in zip(key_meters.val, key_meter_names):
                 self.summary_writer.add_scalar('Train_' + name, v, self.i_iter)
 
