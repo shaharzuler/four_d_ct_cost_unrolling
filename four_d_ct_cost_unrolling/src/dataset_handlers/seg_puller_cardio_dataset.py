@@ -20,6 +20,7 @@ class SegmentationPullerCardioDataset(Dataset):
 
         if dataset_args.flows_gt_path is not None:
             self.sample.flows_gt = torch.tensor(xyz3_to_3xyz(np.load(dataset_args.flows_gt_path))) ### -
+            self.sample.flows_gt = torch.nan_to_num(self.sample.flows_gt) 
         else:
             self.sample.flows_gt = torch.tensor([])
         if normalize:
