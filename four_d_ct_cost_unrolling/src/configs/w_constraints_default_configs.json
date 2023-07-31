@@ -18,7 +18,6 @@
     "w_ternary": 1,
     "alpha": 10,
     "w_scales": [3.0, 3.0, 3.0, 3.0, 3.0],
-    "args.w_constraints_scales": [1, 1, 1, 1, 1],
     "loss": "unflow+2d_constraints",
     "plot_freq": 1,
     "load": "/home/shahar/cardio_corr/my_packages/four_d_ct_cost_unrolling_project/four_d_ct_cost_unrolling/four_d_ct_cost_unrolling/src/checkpoints/4DCT_best_w_admm_ckpt.pth.tar", 

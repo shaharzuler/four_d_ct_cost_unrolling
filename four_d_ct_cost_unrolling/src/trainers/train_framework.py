@@ -88,9 +88,13 @@ class TrainFramework(BaseTrainer):
     def _synt_validate(self, validation_data): #TODO
         flows_pred = validation_data["flows_pred"]
         flows_gt = validation_data["flows_gt"].to(flows_pred.device)
+        
         complete_error = self._calc_epe_error(flows_gt, flows_pred)
         self.summary_writer.add_scalar('Validation Error',complete_error,self.i_epoch)
         
+        volume_error = self._calc_error_in_mask(flows_gt, flows_pred, validation_data["template_seg"])
+        self.summary_writer.add_scalar('Validation LV Volume Error', volume_error, self.i_epoch)
+
         surface_error = self._calc_error_on_surface(flows_gt, flows_pred, validation_data["template_seg"])
         self.summary_writer.add_scalar('Validation Surface Error', surface_error, self.i_epoch)
 
@@ -98,8 +102,14 @@ class TrainFramework(BaseTrainer):
         
         return complete_error
 
+    def _calc_error_in_mask(self, flows_gt, flows_pred, template_seg):
+        template_seg = self._mask_xyz_to_13xyz(template_seg).to(flows_gt.device)
+        error = self._calc_epe_error(flows_gt * template_seg, flows_pred * template_seg) #TODO normalize?
+        return error
+
     def _calc_error_on_surface(self, flows_gt, flows_pred, template_seg):
-        surface_mask = torch.tensor(three_d_data_manager.extract_segmentation_envelope(torch_to_np(template_seg))).to(flows_gt.device)
+        surface_mask = torch.tensor(three_d_data_manager.extract_segmentation_envelope(torch_to_np(template_seg)))
+        surface_mask = self._mask_xyz_to_13xyz(surface_mask).to(flows_gt.device)
         error = self._calc_epe_error(flows_gt * surface_mask, flows_pred * surface_mask) #TODO normalize?
         return error
 
@@ -110,10 +120,13 @@ class TrainFramework(BaseTrainer):
         error = float(epe_map.mean().item())
         return error
 
+    @staticmethod
+    def _mask_xyz_to_13xyz(mask:torch.tensor) -> torch.tensor:
+        return mask.repeat(1,3,1,1,1)
+
     def add_flow_error_vis_to_tensorboard(self, flows_pred, flows_gt) -> None: 
         flow_colors_error_disp = disp_flow_error_colors(torch_to_np(flows_pred[0]), torch_to_np(flows_gt[0]))
         self.summary_writer.add_images(f'flow_error', flow_colors_error_disp, self.i_epoch, dataformats='NCHW')
-
 
 
     @torch.no_grad()
