@@ -43,8 +43,6 @@ class BaseTrainer:
         
         for epoch in range(self.args.epochs):
             break_ = self._run_one_epoch()
-
-            print("Epoch {}".format(self.i_epoch))
             self.i_epoch += 1
             if break_:
                 break
