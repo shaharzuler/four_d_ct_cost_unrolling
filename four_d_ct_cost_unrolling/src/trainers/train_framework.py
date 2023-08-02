@@ -86,9 +86,17 @@ class TrainFramework(BaseTrainer):
         self._validate_basic(validate_self_data) 
 
     def _synt_validate(self, validation_data): #TODO
+        prepared_validation_data = self._prepare_validation_data_for_vis(validation_data)
+        self._compute_and_plot_validation_errors(validation_data, **prepared_validation_data)
+        self.add_flow_error_vis_to_tensorboard(**prepared_validation_data)
+
+    def _prepare_validation_data_for_vis(self, validation_data):
         flows_pred = validation_data["flows_pred"]
         flows_gt = validation_data["flows_gt"].to(flows_pred.device)
+        return {"flows_pred":flows_pred, "flows_gt":flows_gt}
         
+
+    def _compute_and_plot_validation_errors(self, validation_data, flows_pred, flows_gt, **qwargs):
         complete_error = self._calc_epe_error(flows_gt, flows_pred)
         self.summary_writer.add_scalar('Validation Error',complete_error,self.i_epoch)
         
@@ -98,9 +106,6 @@ class TrainFramework(BaseTrainer):
         surface_error = self._calc_error_on_surface(flows_gt, flows_pred, validation_data["template_seg"])
         self.summary_writer.add_scalar('Validation Surface Error', surface_error, self.i_epoch)
 
-        self.add_flow_error_vis_to_tensorboard(flows_pred, flows_gt)
-        
-        return complete_error
 
     def _calc_error_in_mask(self, flows_gt, flows_pred, template_seg):
         template_seg = self._mask_xyz_to_13xyz(template_seg).to(flows_gt.device)
@@ -121,11 +126,11 @@ class TrainFramework(BaseTrainer):
         return error
 
     @staticmethod
-    def _mask_xyz_to_13xyz(mask:torch.tensor) -> torch.tensor:
+    def _mask_xyz_to_13xyz(mask:torch.tensor) -> torch.tensor: # TODO move to torch utils
         return mask.repeat(1,3,1,1,1)
 
-    def add_flow_error_vis_to_tensorboard(self, flows_pred, flows_gt) -> None: 
-        flow_colors_error_disp = disp_flow_error_colors(torch_to_np(flows_pred[0]), torch_to_np(flows_gt[0]))
+    def add_flow_error_vis_to_tensorboard(self, flows_pred:torch.Tensor, flows_gt:torch.Tensor, two_d_constraints:torch.Tensor=None) -> None: 
+        flow_colors_error_disp = disp_flow_error_colors(torch_to_np(flows_pred[0]), torch_to_np(flows_gt[0]), torch_to_np(two_d_constraints[0]))
         self.summary_writer.add_images(f'flow_error', flow_colors_error_disp, self.i_epoch, dataformats='NCHW')
 
 

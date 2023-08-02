@@ -16,10 +16,11 @@ class ConstraintsLoss(nn.modules.Module):
             flow = flow[:,:3,:,:,:]
             constraints_scaled, scale_factor = rescale_flow_tensor(constraints, flow.shape, return_scale_factor=True)
             mask_scaled = rescale_mask_tensor(mask, scale_factor)
+            mask_scaled = mask_scaled.repeat(1,3,1,1,1) #1,1,x,y,z to 1,3,x,y,z # TODO use _mask_xyz_to_13xyz which should be moved from train_framework.py to torch_utils
             if mode == 'l1':
-                loss += scale*(flow * mask_scaled - constraints_scaled).abs().mean() 
+                loss += scale*((flow * mask_scaled) - constraints_scaled).abs().mean() #consicer mean only over nonzero
             elif mode == 'l2':
-                loss += scale*((flow * mask_scaled - constraints_scaled)**2).mean() 
+                loss += scale*(((flow * mask_scaled) - constraints_scaled)**2).mean() 
 
         return loss
 

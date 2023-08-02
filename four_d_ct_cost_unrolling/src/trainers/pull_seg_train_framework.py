@@ -44,6 +44,15 @@ class PullSegmentationMapTrainFramework(TrainFramework):
             
             self.i_iter += 1
         avg_loss=key_meters.get_avg_meter_name("Loss")
+        
+        validation_data = self._create_validation_data(avg_loss, flows, data)            
+        self._validate(validation_data=validation_data)
+
+        self._update_loss_dropping(avg_loss)
+        break_ = self._deicide_on_early_stop()
+        return break_
+
+    def _create_validation_data(self, avg_loss, flows, data):
         validation_data = {
             "validate_self":{"avg_loss": avg_loss}, 
             "synt_validate":{
@@ -53,12 +62,8 @@ class PullSegmentationMapTrainFramework(TrainFramework):
             }
         if "template_seg" in data.keys():
             validation_data["synt_validate"]["template_seg"] =  data["template_seg"][0]
-            
-        self._validate(validation_data=validation_data)
+        return validation_data
 
-        self._update_loss_dropping(avg_loss)
-        break_ = self._deicide_on_early_stop()
-        return break_
 
     def _visualize(self, data:Dict, pred_flow:torch.Tensor, res_dict:Dict=None) -> None: 
         self._add_orig_images_to_tensorboard(data, pred_flow)

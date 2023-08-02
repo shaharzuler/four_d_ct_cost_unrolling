@@ -188,17 +188,21 @@ def _disp_single_flow_colors(flow:np.ndarray, text:str=None) -> np.ndarray:
         flow_disp = np.transpose(flow_disp, (2,0,1))
     return flow_disp
 
-def disp_flow_error_colors(flows_pred:np.ndarray, flows_gt:np.ndarray) -> np.ndarray:
+def disp_flow_error_colors(flows_pred:np.ndarray, flows_gt:np.ndarray, flows_constraints:np.ndarray=None) -> np.ndarray:
     flows_pred_disp = _disp_single_flow_colors(flows_pred, text="prediction")
     flows_gt_disp = _disp_single_flow_colors(flows_gt, text="ground truth")
     diff = flows_pred - flows_gt
     abs_diff_disp = _disp_single_flow_colors(diff, text="error")
+    
     abs_diff = np.abs(diff)
     abs_flow_diff = np.sum(np.dstack(get_2d_flow_sections(abs_diff)), axis=0) #clip?  #TODO maybe add epe map here
     abs_flow_diff_rgb = cv2.cvtColor(abs_flow_diff.astype(np.float32), cv2.COLOR_GRAY2RGB)
     abs_flow_diff_rgb = cv2.putText(abs_flow_diff_rgb, "absolute error", org=(10,20), fontFace=cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.7, color=(1.,0,0), thickness=2)
     abs_flow_diff_rgb = np.transpose(abs_flow_diff_rgb, (2,0,1))
-
-    flow_error_colors_fig = np.concatenate((flows_pred_disp, flows_gt_disp, abs_diff_disp, abs_flow_diff_rgb ),axis=1)[None,::]
+    rows = [flows_pred_disp, flows_gt_disp, abs_diff_disp, abs_flow_diff_rgb]
+    if flows_constraints is not None:
+        flows_constraints_disp = _disp_single_flow_colors(flows_constraints, text="constraints")
+        rows.append(flows_constraints_disp)
+    flow_error_colors_fig = np.concatenate(rows, axis=1)[None,::]
     return flow_error_colors_fig
 
