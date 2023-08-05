@@ -130,7 +130,7 @@ class TrainFramework(BaseTrainer):
         return mask.repeat(1,3,1,1,1)
 
     def add_flow_error_vis_to_tensorboard(self, flows_pred:torch.Tensor, flows_gt:torch.Tensor, two_d_constraints:torch.Tensor=None) -> None: 
-        flow_colors_error_disp = disp_flow_error_colors(torch_to_np(flows_pred[0]), torch_to_np(flows_gt[0]), torch_to_np(two_d_constraints[0]))
+        flow_colors_error_disp = disp_flow_error_colors(torch_to_np(flows_pred[0]), torch_to_np(flows_gt[0]), torch_to_np(two_d_constraints[0]) if two_d_constraints is not None else None)
         self.summary_writer.add_images(f'flow_error', flow_colors_error_disp, self.i_epoch, dataformats='NCHW')
 
 
