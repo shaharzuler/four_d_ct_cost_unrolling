@@ -4,6 +4,8 @@ import numpy as np
 from torch.utils.data import Dataset
 import torch
 
+# from flow_n_corr_utils import _interpolate_knn_axis
+
 from .data_sample import SegmentationPullerSampleArgs, SegmentationPullerSample, SegmentationPullerSampleWithConstraintsArgs, SegmentationPullerSampleWithConstraints
 from ..utils.flow_utils import attach_flow_between_segs, xyz3_to_3xyz
 from ..utils.torch_utils import torch_to_np
@@ -46,14 +48,40 @@ class SegmentationPullerCardioDatasetWithConstraints(SegmentationPullerCardioDat
     def __init__(self, dataset_args:SegmentationPullerSampleWithConstraintsArgs)-> None:
         super().__init__(dataset_args=dataset_args, sample_type=SegmentationPullerSampleWithConstraints) 
         two_d_constraints_arr = np.load(dataset_args.two_d_constraints_path) # a np arr shape x,y,z,3 with mostly np.Nans and some floats. 
-        two_d_constraints = attach_flow_between_segs(two_d_constraints_arr, torch_to_np(self.sample.template_seg))
-        two_d_constraints = self.preprocess_2d_constraints(two_d_constraints) 
-        self.sample.two_d_constraints_with_nans = xyz3_to_3xyz(two_d_constraints) 
-        self.sample.two_d_constraints = np.nan_to_num(self.sample.two_d_constraints_with_nans)
-        self.sample.two_d_constraints_mask = ~np.isnan(self.sample.two_d_constraints_with_nans)[0] 
+        two_d_constraints = attach_flow_between_segs(two_d_constraints_arr.copy(), torch_to_np(self.sample.template_seg).copy())
+        two_d_constraints_processed = self.preprocess_2d_constraints(two_d_constraints.copy()) 
+        self.sample.two_d_constraints_with_nans = xyz3_to_3xyz(two_d_constraints_processed.copy()) 
+        self.sample.two_d_constraints = np.nan_to_num(self.sample.two_d_constraints_with_nans.copy(), copy=True)
+        self.sample.two_d_constraints_mask = np.sum(~np.isnan(self.sample.two_d_constraints_with_nans), axis=0).astype(bool)
         self.sample_dict = asdict(self.sample)
 
-    def preprocess_2d_constraints(self, two_d_constraints:np.ndarray) -> np.ndarray:
+    def preprocess_2d_constraints(self, two_d_constraints:np.ndarray, preprocess_args:dict=None) -> np.ndarray:
         """ Here we can add more preprocessing such as blurring, thickening etc """
+        k_interpolate_sparse_constraints_nn = 26
+        if k_interpolate_sparse_constraints_nn > 1:
+            for axis in range(two_d_constraints.shape[-1]):
+                two_d_constraints = self._interpolate_knn_axis(k_interpolate_sparse_constraints_nn, two_d_constraints.copy(), axis)
+        
         return two_d_constraints
+
+    def _interpolate_knn_axis(self, k_interpolate_sparse_constraints_nn:int, voxelized_flow:np.array, axis:int) -> np.array: #TODO use the one that is in flow_n_corr
+        from scipy.interpolate import griddata
+        from scipy.spatial import cKDTree
+        data_mask = np.isfinite(voxelized_flow[:,:,:,axis] )
+        data_coords = np.array(np.where(data_mask)).T
+        data_values = voxelized_flow[:,:,:,axis][data_mask]
+
+        nan_mask = np.isnan(voxelized_flow[:,:,:,axis] )
+        nan_coords = np.array(np.where(nan_mask)).T
+
+        kdtree = cKDTree(nan_coords)
+        distances, nn_indices = kdtree.query(data_coords, k=k_interpolate_sparse_constraints_nn)
+        nan_coords_for_interp = nan_coords[nn_indices].reshape(-1,3)
+
+        interpolated_values = griddata(data_coords, data_values, nan_coords_for_interp , method='linear')
+        voxelized_flow[nan_coords_for_interp[:,0], nan_coords_for_interp[:,1], nan_coords_for_interp[:,2], axis ] = interpolated_values
+        return voxelized_flow
+
+
+
    
