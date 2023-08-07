@@ -48,11 +48,12 @@ class SegmentationPullerCardioDatasetWithConstraints(SegmentationPullerCardioDat
     def __init__(self, dataset_args:SegmentationPullerSampleWithConstraintsArgs)-> None:
         super().__init__(dataset_args=dataset_args, sample_type=SegmentationPullerSampleWithConstraints) 
         two_d_constraints_arr = np.load(dataset_args.two_d_constraints_path) # a np arr shape x,y,z,3 with mostly np.Nans and some floats. 
-        two_d_constraints = attach_flow_between_segs(two_d_constraints_arr.copy(), torch_to_np(self.sample.template_seg).copy())
-        two_d_constraints_processed = self.preprocess_2d_constraints(two_d_constraints.copy()) 
+        two_d_constraints_raw = attach_flow_between_segs(two_d_constraints_arr.copy(), torch_to_np(self.sample.template_seg).copy())
+        two_d_constraints_processed = self.preprocess_2d_constraints(two_d_constraints_raw.copy()) 
+        two_d_constraints_raw_with_nans_transposed = xyz3_to_3xyz(two_d_constraints_raw.copy()) 
         self.sample.two_d_constraints_with_nans = xyz3_to_3xyz(two_d_constraints_processed.copy()) 
         self.sample.two_d_constraints = np.nan_to_num(self.sample.two_d_constraints_with_nans.copy(), copy=True)
-        self.sample.two_d_constraints_mask = np.sum(~np.isnan(self.sample.two_d_constraints_with_nans), axis=0).astype(bool)
+        self.sample.two_d_constraints_mask = np.sum(~np.isnan(two_d_constraints_raw_with_nans_transposed), axis=0).astype(bool) #the mask is usef to calculate error over the surface and shpuld be of the raw surface component rather than the processed one
         self.sample_dict = asdict(self.sample)
 
     def preprocess_2d_constraints(self, two_d_constraints:np.ndarray, preprocess_args:dict=None) -> np.ndarray:
