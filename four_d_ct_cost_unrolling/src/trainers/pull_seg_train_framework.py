@@ -64,7 +64,6 @@ class PullSegmentationMapTrainFramework(TrainFramework):
             validation_data["synt_validate"]["template_seg"] =  data["template_seg"][0]
         return validation_data
 
-
     def _visualize(self, data:Dict, pred_flow:torch.Tensor, res_dict:Dict=None) -> None: 
         self._add_orig_images_to_tensorboard(data, pred_flow)
         img1_recons_disp = self._add_warped_image_to_tensorboard(data, pred_flow)

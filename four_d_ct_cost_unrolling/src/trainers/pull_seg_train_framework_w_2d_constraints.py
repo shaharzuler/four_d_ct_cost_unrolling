@@ -53,7 +53,6 @@ class PullSegmentationMapTrainFrameworkWith2dConstraints(PullSegmentationMapTrai
             all_flow_arrowed_disp = np.concatenate([all_flow_arrowed_disp, gt_flow_arrowed_disp], axis=2)
         self.summary_writer.add_images('sample_flows', all_flow_arrowed_disp, self.i_epoch, dataformats='NCHW')
 
-    
     def _create_validation_data(self, avg_loss, flows, data):
         validation_data = super()._create_validation_data(avg_loss, flows, data)
         validation_data["synt_validate"]["two_d_constraints"] = data["two_d_constraints"]
