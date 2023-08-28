@@ -6,11 +6,11 @@ import torch
 from torch.utils.data import Dataset
 
 import three_d_data_manager
+from flow_n_corr_utils import disp_flow_error_colors
 
 from .base_trainer import BaseTrainer
 from ..utils.flow_utils import flow_warp
 from ..utils.metrics_utils import AverageMeter
-from ..utils.visualization_utils import disp_flow_error_colors
 from ..utils.torch_utils import torch_to_np
 
 

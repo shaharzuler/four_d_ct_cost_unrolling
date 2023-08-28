@@ -1,5 +1,5 @@
 easydict>=1.9
-flow-vis>=0.1
+# flow-vis>=0.1
 matplotlib>=3.3.4
 numpy>=1.19.5
 opencv-python>=4.5.3.56
@@ -12,3 +12,4 @@ tensorboard>=2.5.0
 torch>=1.9.0
 pynrrd>=0.4.2
 three_d_data_manager @ git+https://github.com/shaharzuler/three_d_data_manager.git
+flow_n_corr_utils @ git+https://github.com/shaharzuler/flow_n_corr_utils.git

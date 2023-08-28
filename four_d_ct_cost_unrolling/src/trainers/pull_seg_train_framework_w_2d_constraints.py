@@ -3,9 +3,10 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
+from flow_n_corr_utils import disp_flow_as_arrows
+
 from .pull_seg_train_framework import PullSegmentationMapTrainFramework
 from ..utils.torch_utils import torch_to_np
-from ..utils.visualization_utils import disp_flow_as_arrows, disp_sparse_flow_as_arrows
 from ..utils.metrics_utils import AverageMeter
 
 

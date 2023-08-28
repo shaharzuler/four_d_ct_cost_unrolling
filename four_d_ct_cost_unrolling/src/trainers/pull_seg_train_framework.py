@@ -10,8 +10,9 @@ import nrrd
 import scipy
 from scipy.ndimage.interpolation import zoom as zoom
 
+from flow_n_corr_utils import disp_warped_img, disp_training_fig, add_mask, disp_flow_as_arrows
+
 from .train_framework import TrainFramework
-from ..utils.visualization_utils import disp_warped_img, disp_training_fig, add_mask, disp_flow_as_arrows
 from ..utils.flow_utils import flow_warp
 from ..utils.torch_utils import torch_to_np
 
