@@ -77,9 +77,6 @@ def rescale_flow_tensor(flow_tensor:torch.Tensor, target_shape:Tuple[int,int,int
         return flow_tensor, tuple(scale_factor)
     return flow_tensor
 
-def xyz3_to_3xyz(flow:np.ndarray) -> np.ndarray:
-    return np.transpose(flow, (3,0,1,2))
-
 def create_and_save_backward_2d_constraints(two_d_constraints_path:str) -> str:
     fw_constraints = np.load(two_d_constraints_path) # x,y,z,3
     ind_of_fw_constraints = np.where(~np.isnan(fw_constraints[:,:,:,0])) # (N,N,N)

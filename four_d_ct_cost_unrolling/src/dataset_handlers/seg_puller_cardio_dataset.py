@@ -4,10 +4,10 @@ import numpy as np
 from torch.utils.data import Dataset
 import torch
 
-# from flow_n_corr_utils import _interpolate_knn_axis
+from flow_n_corr_utils import xyz3_to_3xyz
 
 from .data_sample import SegmentationPullerSampleArgs, SegmentationPullerSample, SegmentationPullerSampleWithConstraintsArgs, SegmentationPullerSampleWithConstraints
-from ..utils.flow_utils import attach_flow_between_segs, xyz3_to_3xyz
+from ..utils.flow_utils import attach_flow_between_segs
 from ..utils.torch_utils import torch_to_np
 
 
