@@ -67,9 +67,9 @@ def rescale_flow_tensor(flow_tensor:torch.Tensor, target_shape:Tuple[int,int,int
     """
     flow is a 5D arr shape n,3,x,y,z
     """
-    scale_factor = np.array(target_shape[2:])/np.array(flow_tensor.shape[2:])
+    scale_factor = np.array(target_shape[2:])/np.array(flow_tensor.shape[2:])+0.001
     if flow_tensor.shape != target_shape:
-        scale_factor = np.array(target_shape[2:])/np.array(flow_tensor.shape[2:])
+        scale_factor = np.array(target_shape[2:])/np.array(flow_tensor.shape[2:])+0.001
         for i in range(3):
             flow_tensor[:,i,:,:,:] *= scale_factor[i]
         flow_tensor = F.interpolate(flow_tensor, scale_factor=tuple(scale_factor), mode=mode)

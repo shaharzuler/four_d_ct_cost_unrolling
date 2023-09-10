@@ -58,7 +58,7 @@ class SegmentationPullerCardioDatasetWithConstraints(SegmentationPullerCardioDat
 
     def preprocess_2d_constraints(self, two_d_constraints:np.ndarray, preprocess_args:dict=None) -> np.ndarray:
         """ Here we can add more preprocessing such as blurring, thickening etc """
-        k_interpolate_sparse_constraints_nn = 124
+        k_interpolate_sparse_constraints_nn = 26
         if k_interpolate_sparse_constraints_nn > 1:
             for axis in range(two_d_constraints.shape[-1]):
                 two_d_constraints = self._interpolate_knn_axis(k_interpolate_sparse_constraints_nn, two_d_constraints.copy(), axis)
