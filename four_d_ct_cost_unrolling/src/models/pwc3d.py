@@ -4,6 +4,7 @@ from typing import Dict
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 from .pwc_blocks import FeatureExtractor, Correlation, FlowEstimatorReduce, ContextNetwork, conv
 from .admm.admm import ADMMSolverBlock, MaskGenerator
@@ -64,7 +65,9 @@ class PWC3D(nn.Module):
         x1_p = self.feature_pyramid_extractor(x1) + [x1] 
         x2_p = self.feature_pyramid_extractor(x2) + [x2]
         out_scale = 2**(self.num_levels - self.output_level - 1) 
-        masks = [self.mask_gen(x_, vox_dim/out_scale, scale=1/out_scale) for x_ in [x1, x2]]
+
+        req_scale = tuple(((np.ceil((np.array(x1.shape))*(1/out_scale)))[2:]) / np.array(x1.shape)[2:])
+        masks = [self.mask_gen(x_, vox_dim/out_scale, scale=req_scale) for x_ in [x1, x2]]
 
         res_dict = {
             'flows_fw': self._forward_2_frames(x1_p, x2_p, mask=masks[0], vox_dim=vox_dim)

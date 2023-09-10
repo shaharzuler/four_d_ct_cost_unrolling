@@ -30,7 +30,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
             prepared_data = self._prepare_data(data)
             am_data_time.update(time.time() - end)
             res_dict = self.model(prepared_data) 
-            flows, aux = self._post_process_model_output(res_dict)
+            flows, aux = self._post_process_model_output(res_dict, data["template_image"].shape)
 
             loss, meters = self._compute_loss_terms(prepared_data["img1"], prepared_data["img2"], prepared_data["vox_dim"], flows, aux, prepared_data, None)
             meters = [loss, *meters]
@@ -105,6 +105,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
             prepared_data = self._prepare_data(data)
             res_dict = self.model(prepared_data) 
             flow_tensor = res_dict["flows_fw"][0][0]
+            flow_tensor = self._fix_flow_dims(flow_tensor, prepared_data["img1"].shape)
             
             if self.inference_args.inference_flow_median_filter_size:
                 for axis in range(3):
