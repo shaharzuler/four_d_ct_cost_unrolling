@@ -16,8 +16,8 @@ class SegmentationPullerCardioDataset(Dataset):
         self.sample = sample_type(**{
             'template_image' : torch.tensor(ndimage.zoom(np.load(dataset_args.template_image_path), 1/scale_down_by)),  
             'unlabeled_image' : torch.tensor(ndimage.zoom(np.load(dataset_args.unlabeled_image_path), 1/scale_down_by)),   
-            'template_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.template_seg_path), 1/scale_down_by)), 
-            'unlabeled_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.unlabeled_seg_path), 1/scale_down_by))
+            'template_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.template_seg_path), 1/scale_down_by, order=0)), 
+            'unlabeled_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.unlabeled_seg_path), 1/scale_down_by, order=0))
             })
 
         if dataset_args.flows_gt_path is not None:
@@ -47,7 +47,9 @@ class SegmentationPullerCardioDataset(Dataset):
 class SegmentationPullerCardioDatasetWithConstraints(SegmentationPullerCardioDataset): # this lean version only supports overfit. for the full version go to https://github.com/gallif/_4DCTCostUnrolling
     def __init__(self, dataset_args:SegmentationPullerSampleWithConstraintsArgs, scale_down_by:int=1)-> None:
         super().__init__(dataset_args=dataset_args, sample_type=SegmentationPullerSampleWithConstraints, scale_down_by=scale_down_by) 
-        two_d_constraints_arr = ndimage.zoom(np.load(dataset_args.two_d_constraints_path), (1/scale_down_by,1/scale_down_by,1/scale_down_by,1),order=0) / scale_down_by# a np arr shape x,y,z,3 with mostly np.Nans and some floats. 
+        # two_d_constraints_arr = ndimage.zoom(np.load(dataset_args.two_d_constraints_path), (1/scale_down_by,1/scale_down_by,1/scale_down_by,1),order=0) / scale_down_by# a np arr shape x,y,z,3 with mostly np.Nans and some floats. 
+        two_d_constraints_arr = np.load(dataset_args.two_d_constraints_path)[::scale_down_by, ::scale_down_by, ::scale_down_by, :] / scale_down_by# a np arr shape x,y,z,3 with mostly np.Nans and some floats. 
+
         two_d_constraints_raw = attach_flow_between_segs(two_d_constraints_arr.copy(), torch_to_np(self.sample.template_seg).copy())
         two_d_constraints_processed = self.preprocess_2d_constraints(two_d_constraints_raw.copy()) 
         two_d_constraints_raw_with_nans_transposed = xyz3_to_3xyz(two_d_constraints_raw.copy()) 
@@ -58,7 +60,7 @@ class SegmentationPullerCardioDatasetWithConstraints(SegmentationPullerCardioDat
 
     def preprocess_2d_constraints(self, two_d_constraints:np.ndarray, preprocess_args:dict=None) -> np.ndarray:
         """ Here we can add more preprocessing such as blurring, thickening etc """
-        k_interpolate_sparse_constraints_nn = 26
+        k_interpolate_sparse_constraints_nn = 26 # TODO export to config
         if k_interpolate_sparse_constraints_nn > 1:
             for axis in range(two_d_constraints.shape[-1]):
                 two_d_constraints = self._interpolate_knn_axis(k_interpolate_sparse_constraints_nn, two_d_constraints.copy(), axis)
