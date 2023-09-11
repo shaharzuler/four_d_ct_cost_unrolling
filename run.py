@@ -14,6 +14,7 @@ args["valid_type"] = "basic+synthetic"
 args["w_sm_scales"] = [0,0,0,0,0]
 args["visualization_arrow_scale_factor"] = 1
 args["cuda_device"] = 0
+args["scale_down_by"] = 2
 
 
 # backbone_model_output_path = overfit_backbone(
@@ -43,7 +44,7 @@ args["inference_args"]["inference_flow_median_filter_size"] = False
 args["epochs"] = 50
 args["valid_type"] = "basic+synthetic"
 args["load"] = get_checkpoints_path(backbone_model_output_path) #"/home/shahar/cardio_corr/my_packages/four_d_ct_cost_unrolling_project/4dct_costunrolling_model_best.pth.tar"#
-
+args["scale_down_by"] = 2
 args["w_sm_scales"] = [0.0, 0, 0, 0, 0]
 
 constraints_model_output_path = overfit_w_constraints(

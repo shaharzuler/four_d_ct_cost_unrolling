@@ -39,6 +39,7 @@
         "unlabeled_timestep": 28,
         "output_warped_seg_maps_dir": "warped_seg_maps"
     },
-    "visualization_arrow_scale_factor": 1
+    "visualization_arrow_scale_factor": 1,
+    "scale_down_by": 1
     
 }

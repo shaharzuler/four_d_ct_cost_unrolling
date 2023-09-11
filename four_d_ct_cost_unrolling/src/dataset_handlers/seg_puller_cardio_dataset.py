@@ -3,7 +3,7 @@ from dataclasses import asdict
 import numpy as np
 from torch.utils.data import Dataset
 import torch
-
+from scipy import ndimage 
 from flow_n_corr_utils import xyz3_to_3xyz
 
 from .data_sample import SegmentationPullerSampleArgs, SegmentationPullerSample, SegmentationPullerSampleWithConstraintsArgs, SegmentationPullerSampleWithConstraints
@@ -12,16 +12,16 @@ from ..utils.torch_utils import torch_to_np
 
 
 class SegmentationPullerCardioDataset(Dataset):
-    def __init__(self, dataset_args:SegmentationPullerSampleArgs, sample_type:SegmentationPullerSample, normalize=True)-> None:
+    def __init__(self, dataset_args:SegmentationPullerSampleArgs, sample_type:SegmentationPullerSample, normalize=True, scale_down_by:int=1)-> None:
         self.sample = sample_type(**{
-            'template_image' : torch.tensor(np.load(dataset_args.template_image_path)),  
-            'unlabeled_image' : torch.tensor(np.load(dataset_args.unlabeled_image_path)),  
-            'template_seg' : torch.tensor(np.load(dataset_args.template_seg_path)),
-            'unlabeled_seg' : torch.tensor(np.load(dataset_args.unlabeled_seg_path))
+            'template_image' : torch.tensor(ndimage.zoom(np.load(dataset_args.template_image_path), 1/scale_down_by)),  
+            'unlabeled_image' : torch.tensor(ndimage.zoom(np.load(dataset_args.unlabeled_image_path), 1/scale_down_by)),   
+            'template_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.template_seg_path), 1/scale_down_by)), 
+            'unlabeled_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.unlabeled_seg_path), 1/scale_down_by))
             })
 
         if dataset_args.flows_gt_path is not None:
-            self.sample.flows_gt = torch.tensor(xyz3_to_3xyz(np.load(dataset_args.flows_gt_path))) ### -
+            self.sample.flows_gt = torch.tensor(ndimage.zoom(xyz3_to_3xyz(np.load(dataset_args.flows_gt_path)), (1,1/scale_down_by,1/scale_down_by,1/scale_down_by))) /scale_down_by
             self.sample.flows_gt = torch.nan_to_num(self.sample.flows_gt) 
         else:
             self.sample.flows_gt = torch.tensor([])
@@ -45,9 +45,9 @@ class SegmentationPullerCardioDataset(Dataset):
 
 
 class SegmentationPullerCardioDatasetWithConstraints(SegmentationPullerCardioDataset): # this lean version only supports overfit. for the full version go to https://github.com/gallif/_4DCTCostUnrolling
-    def __init__(self, dataset_args:SegmentationPullerSampleWithConstraintsArgs)-> None:
-        super().__init__(dataset_args=dataset_args, sample_type=SegmentationPullerSampleWithConstraints) 
-        two_d_constraints_arr = np.load(dataset_args.two_d_constraints_path) # a np arr shape x,y,z,3 with mostly np.Nans and some floats. 
+    def __init__(self, dataset_args:SegmentationPullerSampleWithConstraintsArgs, scale_down_by:int=1)-> None:
+        super().__init__(dataset_args=dataset_args, sample_type=SegmentationPullerSampleWithConstraints, scale_down_by=scale_down_by) 
+        two_d_constraints_arr = ndimage.zoom(np.load(dataset_args.two_d_constraints_path), (1/scale_down_by,1/scale_down_by,1/scale_down_by,1),order=0) / scale_down_by# a np arr shape x,y,z,3 with mostly np.Nans and some floats. 
         two_d_constraints_raw = attach_flow_between_segs(two_d_constraints_arr.copy(), torch_to_np(self.sample.template_seg).copy())
         two_d_constraints_processed = self.preprocess_2d_constraints(two_d_constraints_raw.copy()) 
         two_d_constraints_raw_with_nans_transposed = xyz3_to_3xyz(two_d_constraints_raw.copy()) 

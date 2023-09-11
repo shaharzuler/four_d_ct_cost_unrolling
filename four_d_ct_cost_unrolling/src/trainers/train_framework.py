@@ -29,7 +29,8 @@ class TrainFramework(BaseTrainer):
             diff = np.array(flow.shape[-3:])-shape_[-3:]
             diff_a = diff//2
             diff_b = diff-diff_a
-            return flow[:,:,diff_a[0]:-diff_b[0], diff_a[1]:-diff_b[1],:] #TODO generalize it!
+            
+            return flow[:,:,diff_a[0]:-diff_b[0] or None, diff_a[1]:-diff_b[1] or None,diff_a[2]:-diff_b[2] or None] #TODO generalize it!
 
 
     def _post_process_model_output(self, res_dict:Dict[str,torch.Tensor], shape_:Tuple) -> Tuple[List[torch.Tensor],Tuple]:
