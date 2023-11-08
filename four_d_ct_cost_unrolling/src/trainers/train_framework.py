@@ -11,7 +11,7 @@ from flow_n_corr_utils import disp_flow_error_colors
 
 from .base_trainer import BaseTrainer
 from ..utils.flow_utils import flow_warp
-from ..utils.metrics_utils import AverageMeter
+from ..utils.metrics_utils import AverageMeter, calc_epe_error, calc_error_in_mask, calc_error_on_surface, calc_error_vs_distance, get_error_vs_distance_plot_image
 from ..utils.torch_utils import torch_to_np
 
 
@@ -117,70 +117,23 @@ class TrainFramework(BaseTrainer):
         
 
     def _compute_and_plot_validation_errors(self, validation_data, flows_pred, flows_gt, distance_validation_masks, **qwargs):
-        complete_error = self._calc_epe_error(flows_gt, flows_pred)
+        complete_error = calc_epe_error(flows_gt, flows_pred)
         self.summary_writer.add_scalar('Validation Error',complete_error,self.i_epoch)
         
-        volume_error = self._calc_error_in_mask(flows_gt, flows_pred, validation_data["template_seg"])
+        volume_error = calc_error_in_mask(flows_gt, flows_pred, validation_data["template_seg"])
         self.summary_writer.add_scalar('Validation LV Volume Error', volume_error, self.i_epoch)
 
-        surface_error = self._calc_error_on_surface(flows_gt, flows_pred, validation_data["template_seg"])
+        surface_error = calc_error_on_surface(flows_gt, flows_pred, validation_data["template_seg"])
         self.summary_writer.add_scalar('Validation Surface Error', surface_error, self.i_epoch)
+
+        distance_calculated_errors = calc_error_vs_distance(flows_pred, flows_gt, distance_validation_masks)
+        for region_name, region in distance_calculated_errors.items():
+            for distance, distance_error in zip(*region):
+                self.summary_writer.add_scalar(f'Distance {region_name} Validation Error/{distance}', np.array(distance_error), self.i_epoch)
         
-        from matplotlib import pyplot as plt
-        import cv2
-        distance_calculated_errors = {}
-        plt.close()
-        for region_name, region in distance_validation_masks.items():
-            distance_calculated_errors[region_name] = [[],[]]
-            for distance, distance_mask in region.items():
-                distance_error = self._calc_error_in_mask(flows_gt, flows_pred, distance_mask)
-                self.summary_writer.add_scalar(f'Distance {region_name} Validation Error/{distance}', distance_error, self.i_epoch)
-                # distance_calculated_errors[region_name][distance] = distance_error
-                distance_calculated_errors[region_name][0].append(distance)
-                distance_calculated_errors[region_name][1].append(distance_error)
-            plt.plot(distance_calculated_errors[region_name][0],distance_calculated_errors[region_name][1])
-        plt.xlabel("distance")
-        plt.ylabel("error")
-        plt.legend(list(distance_validation_masks.keys()))
-        plt.show()
-        plt.savefig("tmp.jpg")
-        plt_ = np.expand_dims(cv2.imread("tmp.jpg"), 0)
-        self.summary_writer.add_images(f'Distance Validation Error', plt_, self.i_epoch, dataformats='NHWC')
+        error_vs_dist_plot = get_error_vs_distance_plot_image(distance_validation_masks, distance_calculated_errors)   
+        self.summary_writer.add_images(f'Distance Validation Error', error_vs_dist_plot, self.i_epoch, dataformats='NHWC')
 
-
-        
-
-
-
-
-
-
-
-    def _calc_error_in_mask(self, flows_gt, flows_pred, template_seg):
-        if template_seg.sum() == 0:
-            return 0.0
-        template_seg = self._mask_xyz_to_13xyz(template_seg).to(flows_gt.device)
-        normalization_term = torch.numel(template_seg[0,0]) / template_seg[0,0].nonzero().shape[0]  #TODO TEST
-        error = (self._calc_epe_error(flows_gt * template_seg, flows_pred * template_seg)) * normalization_term 
-        return error
-
-    def _calc_error_on_surface(self, flows_gt, flows_pred, template_seg):
-        surface_mask = torch.tensor(three_d_data_manager.extract_segmentation_envelope(torch_to_np(template_seg)))
-        surface_mask = self._mask_xyz_to_13xyz(surface_mask).to(flows_gt.device)
-        normalization_term = torch.numel(surface_mask[0,0]) / surface_mask[0,0].nonzero().shape[0] #TODO TEST
-        error = (self._calc_epe_error(flows_gt * surface_mask, flows_pred * surface_mask)) * normalization_term 
-        return error
-
-    def _calc_epe_error(self, flows_gt, flows_pred): 
-        flow_diff = flows_gt - flows_pred
-        epe_map = torch.sqrt(torch.sum(torch.square(flow_diff), dim=0)).mean()
-        # epe_map = torch.abs(flow12 - flow12_net).to(self.device).mean()
-        error = float(epe_map.mean().item())
-        return error
-
-    @staticmethod
-    def _mask_xyz_to_13xyz(mask:torch.tensor) -> torch.tensor: # TODO move to torch utils
-        return mask.repeat(1,3,1,1,1)
 
     def add_flow_error_vis_to_tensorboard(self, flows_pred:torch.Tensor, flows_gt:torch.Tensor, two_d_constraints:torch.Tensor=None, **qwargs) -> None: 
         flow_colors_error_disp = disp_flow_error_colors(torch_to_np(flows_pred[0]), torch_to_np(flows_gt[0]), torch_to_np(two_d_constraints[0]) if two_d_constraints is not None else None)
