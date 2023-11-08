@@ -15,7 +15,7 @@ def bias_parameters(module):
     return [param for name, param in module.named_parameters() if 'bias' in name]
 
 def load_checkpoint(model_path:str) -> Tuple[int,OrderedDict]:
-    weights = torch.load(model_path, map_location={'cuda:0': 'cpu'})
+    weights = torch.load(model_path, map_location={'cuda:0': 'cpu', 'cuda:5': 'cpu'}) # TODO autogenerae for 0:8
     epoch = None
     if 'epoch' in weights:
         epoch = weights.pop('epoch')
@@ -41,3 +41,6 @@ def rescale_mask_tensor(mask:torch.Tensor, scale_factor:Tuple) -> torch.Tensor:
 
 def torch_to_np(tensor:torch.Tensor) -> np.ndarray:
     return tensor.detach().cpu().numpy()
+
+def mask_xyz_to_13xyz(mask:torch.tensor) -> torch.tensor: 
+    return mask.repeat(1,3,1,1,1)
