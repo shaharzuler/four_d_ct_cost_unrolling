@@ -97,7 +97,7 @@ class TrainFramework(BaseTrainer):
     def _validate_self(self, validate_self_data:Dict) -> None:
         self._validate_basic(validate_self_data) 
 
-    def _synt_validate(self, validation_data): #TODO
+    def _synt_validate(self, validation_data): 
         prepared_validation_data = self._prepare_validation_data_for_vis(validation_data)
         self._compute_and_plot_validation_errors(validation_data, **prepared_validation_data)
         self.add_flow_error_vis_to_tensorboard(**prepared_validation_data)
@@ -105,10 +105,18 @@ class TrainFramework(BaseTrainer):
     def _prepare_validation_data_for_vis(self, validation_data):
         flows_pred = validation_data["flows_pred"]
         flows_gt = validation_data["flows_gt"].to(flows_pred.device)
-        return {"flows_pred":flows_pred, "flows_gt":flows_gt}
+        processed_validation_data = {"flows_pred":flows_pred, "flows_gt":flows_gt}
+        if 'distance_validation_masks' in validation_data.keys():
+            processed_validation_data["distance_validation_masks"] = {}
+            for region_name, region in validation_data["distance_validation_masks"].items():
+                processed_validation_data["distance_validation_masks"][region_name] = {}
+                for distance, distance_mask in region.items():
+                    processed_validation_data["distance_validation_masks"][region_name][distance] = distance_mask[0]
+
+        return processed_validation_data
         
 
-    def _compute_and_plot_validation_errors(self, validation_data, flows_pred, flows_gt, **qwargs):
+    def _compute_and_plot_validation_errors(self, validation_data, flows_pred, flows_gt, distance_validation_masks, **qwargs):
         complete_error = self._calc_epe_error(flows_gt, flows_pred)
         self.summary_writer.add_scalar('Validation Error',complete_error,self.i_epoch)
         
@@ -117,9 +125,40 @@ class TrainFramework(BaseTrainer):
 
         surface_error = self._calc_error_on_surface(flows_gt, flows_pred, validation_data["template_seg"])
         self.summary_writer.add_scalar('Validation Surface Error', surface_error, self.i_epoch)
+        
+        from matplotlib import pyplot as plt
+        import cv2
+        distance_calculated_errors = {}
+        plt.close()
+        for region_name, region in distance_validation_masks.items():
+            distance_calculated_errors[region_name] = [[],[]]
+            for distance, distance_mask in region.items():
+                distance_error = self._calc_error_in_mask(flows_gt, flows_pred, distance_mask)
+                self.summary_writer.add_scalar(f'Distance {region_name} Validation Error/{distance}', distance_error, self.i_epoch)
+                # distance_calculated_errors[region_name][distance] = distance_error
+                distance_calculated_errors[region_name][0].append(distance)
+                distance_calculated_errors[region_name][1].append(distance_error)
+            plt.plot(distance_calculated_errors[region_name][0],distance_calculated_errors[region_name][1])
+        plt.xlabel("distance")
+        plt.ylabel("error")
+        plt.legend(list(distance_validation_masks.keys()))
+        plt.show()
+        plt.savefig("tmp.jpg")
+        plt_ = np.expand_dims(cv2.imread("tmp.jpg"), 0)
+        self.summary_writer.add_images(f'Distance Validation Error', plt_, self.i_epoch, dataformats='NHWC')
+
+
+        
+
+
+
+
+
 
 
     def _calc_error_in_mask(self, flows_gt, flows_pred, template_seg):
+        if template_seg.sum() == 0:
+            return 0.0
         template_seg = self._mask_xyz_to_13xyz(template_seg).to(flows_gt.device)
         normalization_term = torch.numel(template_seg[0,0]) / template_seg[0,0].nonzero().shape[0]  #TODO TEST
         error = (self._calc_epe_error(flows_gt * template_seg, flows_pred * template_seg)) * normalization_term 
@@ -143,7 +182,7 @@ class TrainFramework(BaseTrainer):
     def _mask_xyz_to_13xyz(mask:torch.tensor) -> torch.tensor: # TODO move to torch utils
         return mask.repeat(1,3,1,1,1)
 
-    def add_flow_error_vis_to_tensorboard(self, flows_pred:torch.Tensor, flows_gt:torch.Tensor, two_d_constraints:torch.Tensor=None) -> None: 
+    def add_flow_error_vis_to_tensorboard(self, flows_pred:torch.Tensor, flows_gt:torch.Tensor, two_d_constraints:torch.Tensor=None, **qwargs) -> None: 
         flow_colors_error_disp = disp_flow_error_colors(torch_to_np(flows_pred[0]), torch_to_np(flows_gt[0]), torch_to_np(two_d_constraints[0]) if two_d_constraints is not None else None)
         self.summary_writer.add_images(f'flow_error', flow_colors_error_disp, self.i_epoch, dataformats='NCHW')
 

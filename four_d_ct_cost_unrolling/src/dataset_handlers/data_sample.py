@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Dict
 
 import numpy as np
 
@@ -9,6 +10,8 @@ class SegmentationPullerSampleArgs:
     template_seg_path : str = None
     unlabeled_seg_path : str = None
     flows_gt_path : str = None
+    num_pixels_validate_outside_seg : int = 0
+    num_pixels_validate_inside_seg : int = 0
 
 @dataclass
 class SegmentationPullerSample:
@@ -17,6 +20,7 @@ class SegmentationPullerSample:
     template_seg : np.array = None
     unlabeled_seg : np.array = None
     flows_gt : np.array = None
+
 
 @dataclass
 class SegmentationPullerSampleWithConstraintsArgs(SegmentationPullerSampleArgs):

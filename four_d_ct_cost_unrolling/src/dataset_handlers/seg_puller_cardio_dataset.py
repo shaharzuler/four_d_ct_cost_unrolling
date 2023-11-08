@@ -32,8 +32,34 @@ class SegmentationPullerCardioDataset(Dataset):
             self.sample.unlabeled_image = self.min_max_norm(self.sample.unlabeled_image, min_, max_)
 
         self.sample_dict = asdict(self.sample)
+        
+        if max(dataset_args.num_pixels_validate_inside_seg, dataset_args.num_pixels_validate_outside_seg) > 0:
+            self.sample_dict["distance_validation_masks"] = self._create_distance_validation_masks(dataset_args.num_pixels_validate_inside_seg, dataset_args.num_pixels_validate_outside_seg)
 
-    def min_max_norm(self, img:torch.Tensor, min_:float, max_:float) -> torch.Tensor:
+
+    def _create_distance_validation_masks(self, num_pixels_validate_inside_seg:int, num_pixels_validate_outside_seg:int):
+        from scipy.ndimage import binary_dilation, binary_erosion
+        validation_masks = {"in": {}, "out": {}}
+
+        last_dilated = (self.sample.template_seg).cpu().numpy()
+        for i_out in range(1, num_pixels_validate_outside_seg+1): 
+            dilated = binary_dilation(last_dilated)
+            mask = dilated ^ last_dilated
+            validation_masks["out"][i_out] = mask
+            last_dilated = dilated
+
+        last_erosed = (self.sample.template_seg).cpu().numpy()
+        for i_in in range(1, num_pixels_validate_inside_seg+1): 
+            erosed = binary_erosion(last_erosed)
+            mask = erosed ^ last_erosed
+            validation_masks["in"][i_in] = mask
+            last_erosed = erosed
+
+        return validation_masks
+
+            
+
+    def min_max_norm(self, img:torch.Tensor, min_:float, max_:float) -> torch.Tensor: # TODO move to some utils
         return (img-min_)/(max_-min_)
 
 
@@ -56,7 +82,7 @@ class SegmentationPullerCardioDatasetWithConstraints(SegmentationPullerCardioDat
         self.sample.two_d_constraints_with_nans = xyz3_to_3xyz(two_d_constraints_processed.copy()) 
         self.sample.two_d_constraints = np.nan_to_num(self.sample.two_d_constraints_with_nans.copy(), copy=True)
         self.sample.two_d_constraints_mask = np.sum(~np.isnan(two_d_constraints_raw_with_nans_transposed), axis=0).astype(bool) #the mask is usef to calculate error over the surface and shpuld be of the raw surface component rather than the processed one
-        self.sample_dict = asdict(self.sample)
+        self.sample_dict.update(asdict(self.sample))
 
     def preprocess_2d_constraints(self, two_d_constraints:np.ndarray, preprocess_args:dict=None) -> np.ndarray:
         """ Here we can add more preprocessing such as blurring, thickening etc """

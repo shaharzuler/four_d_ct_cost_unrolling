@@ -50,7 +50,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         self._validate(validation_data=validation_data)
 
         self._update_loss_dropping(avg_loss)
-        break_ = self._deicide_on_early_stop()
+        break_ = self._decide_on_early_stop()
         return break_
 
     def _create_validation_data(self, avg_loss, flows, data):
@@ -63,6 +63,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
             }
         if "template_seg" in data.keys():
             validation_data["synt_validate"]["template_seg"] =  data["template_seg"][0]
+            validation_data["synt_validate"]["distance_validation_masks"] =  data["distance_validation_masks"]
         return validation_data
 
     def _visualize(self, data:Dict, pred_flow:torch.Tensor, res_dict:Dict=None) -> None: 

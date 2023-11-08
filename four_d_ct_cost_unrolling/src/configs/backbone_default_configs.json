@@ -40,6 +40,7 @@
         "output_warped_seg_maps_dir": "warped_seg_maps"
     },
     "visualization_arrow_scale_factor": 1,
-    "scale_down_by": 1
-    
+    "scale_down_by": 1,
+    "num_pixels_validate_inside_seg" : 20,
+    "num_pixels_validate_outside_seg" : 20
 }

@@ -17,26 +17,26 @@ args["cuda_device"] = 0
 args["scale_down_by"] = 2
 
 
-# backbone_model_output_path = overfit_backbone(
-#     template_image_path='/home/shahar/cardio_corr/outputs/magix/synthetic_dataset100/thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7/image_skewed_thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7.npy', 
-#     unlabeled_image_path='/home/shahar/cardio_corr/outputs/magix/synthetic_dataset100/thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7/image_orig_thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7.npy', 
-#     template_seg_path='/home/shahar/cardio_corr/outputs/magix/synthetic_dataset100/thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7/mask_skewed_thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7.npy', 
-#     unlabeled_seg_path='/home/shahar/cardio_corr/outputs/magix/synthetic_dataset100/thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7/mask_orig_thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7.npy', 
-#     flows_gt_path='/home/shahar/cardio_corr/outputs/magix/synthetic_dataset100/thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7/flow_for_image_thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7.npy', 
-#     args=EasyDict(args)
-#     )
+backbone_model_output_path = overfit_backbone(
+    template_image_path='/home/shahar/cardio_corr/outputs/magix/synthetic_dataset100/thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7/image_skewed_thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7.npy', 
+    unlabeled_image_path='/home/shahar/cardio_corr/outputs/magix/synthetic_dataset100/thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7/image_orig_thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7.npy', 
+    template_seg_path='/home/shahar/cardio_corr/outputs/magix/synthetic_dataset100/thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7/mask_skewed_thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7.npy', 
+    unlabeled_seg_path='/home/shahar/cardio_corr/outputs/magix/synthetic_dataset100/thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7/mask_orig_thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7.npy', 
+    flows_gt_path='/home/shahar/cardio_corr/outputs/magix/synthetic_dataset100/thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7/flow_for_image_thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7.npy', 
+    args=EasyDict(args)
+    )
 
-# args["load"] = get_checkpoints_path(backbone_model_output_path)
+args["load"] = get_checkpoints_path(backbone_model_output_path)
 
-# backbone_inference_output_path = infer_backbone(
-#     template_image_path='/home/shahar/cardio_corr/outputs/magix/synthetic_dataset100/thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7/image_skewed_thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7.npy', 
-#     unlabeled_image_path='/home/shahar/cardio_corr/outputs/magix/synthetic_dataset100/thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7/image_orig_thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7.npy', 
-#     template_seg_path='/home/shahar/cardio_corr/outputs/magix/synthetic_dataset100/thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7/mask_skewed_thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7.npy', 
-#     unlabeled_seg_path='/home/shahar/cardio_corr/outputs/magix/synthetic_dataset100/thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7/mask_orig_thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7.npy', 
-#     args=EasyDict(args)
-#     )
+backbone_inference_output_path = infer_backbone(
+    template_image_path='/home/shahar/cardio_corr/outputs/magix/synthetic_dataset100/thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7/image_skewed_thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7.npy', 
+    unlabeled_image_path='/home/shahar/cardio_corr/outputs/magix/synthetic_dataset100/thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7/image_orig_thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7.npy', 
+    template_seg_path='/home/shahar/cardio_corr/outputs/magix/synthetic_dataset100/thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7/mask_skewed_thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7.npy', 
+    unlabeled_seg_path='/home/shahar/cardio_corr/outputs/magix/synthetic_dataset100/thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7/mask_orig_thetas_120.0_0.0_rs_0.95_0.95_h_0.95_linear_mask_True_blur_radious_7.npy', 
+    args=EasyDict(args)
+    )
 
-backbone_model_output_path = "/home/shahar/cardio_corr/outputs/magix/outputs_20230910_223618/outputs_backbone_training_20230910_223633"
+# backbone_model_output_path = "/home/shahar/cardio_corr/outputs/magix/outputs_20230910_223618/outputs_backbone_training_20230910_223633"
 
 args = get_default_w_constraints_config()
 args["save_iter"] = 2

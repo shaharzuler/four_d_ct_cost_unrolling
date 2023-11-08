@@ -14,7 +14,7 @@ from .models.pwc3d_w_2d_constraints import PWC3Dw2dConstraints
 
 
 def overfit_backbone(template_image_path:str, unlabeled_image_path:str, template_seg_path:str, unlabeled_seg_path:str, flows_gt_path:str=None, args:Dict=None) -> str: 
-    data_sample_args = SegmentationPullerSampleArgs(template_image_path, unlabeled_image_path, template_seg_path, unlabeled_seg_path, flows_gt_path)
+    data_sample_args = SegmentationPullerSampleArgs(template_image_path, unlabeled_image_path, template_seg_path, unlabeled_seg_path, flows_gt_path, args.num_pixels_validate_inside_seg, args.num_pixels_validate_outside_seg)
     train_set = SegmentationPullerCardioDataset(data_sample_args, sample_type=SegmentationPullerSample, scale_down_by=args.scale_down_by)
     model = PWC3D(args)
     loss = get_loss(args)
@@ -37,6 +37,8 @@ def overfit_w_constraints(template_image_path:str, unlabeled_image_path:str, tem
         template_seg_path=template_seg_path, 
         unlabeled_seg_path=unlabeled_seg_path, 
         flows_gt_path=flows_gt_path,
+        num_pixels_validate_inside_seg=args.num_pixels_validate_inside_seg, 
+        num_pixels_validate_outside_seg=args.num_pixels_validate_outside_seg,
         two_d_constraints_path=two_d_constraints_path)
     train_set = SegmentationPullerCardioDatasetWithConstraints(data_sample_args, scale_down_by=args.scale_down_by)
     model = PWC3Dw2dConstraints(args, train_set.sample.two_d_constraints)

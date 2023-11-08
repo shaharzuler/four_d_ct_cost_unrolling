@@ -124,7 +124,7 @@ class BaseTrainer:
         save_checkpoint(os.path.join(self.output_root , "checkpoints"), models, name, is_best)
     
 
-    def _deicide_on_early_stop(self) -> bool:
+    def _decide_on_early_stop(self) -> bool:
         if self.reduce_loss_delay > self.max_reduce_loss_delay:
             break_ = True
         else:
