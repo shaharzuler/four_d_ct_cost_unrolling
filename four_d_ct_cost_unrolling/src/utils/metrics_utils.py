@@ -59,7 +59,7 @@ class AverageMeter(object):
 
 def calc_epe_error(flows_gt, flows_pred): 
     flow_diff = flows_gt - flows_pred
-    epe_map = torch.sqrt(torch.sum(torch.square(flow_diff), dim=0)).mean()
+    epe_map = torch.sqrt(torch.sum(torch.square(flow_diff), dim=1))#.mean()
     # epe_map = torch.abs(flow12 - flow12_net).to(self.device).mean()
     error = float(epe_map.mean().item())
     return error
@@ -68,14 +68,14 @@ def calc_error_in_mask(flows_gt, flows_pred, template_seg):
     if template_seg.sum() == 0:
         return 0.0
     template_seg = mask_xyz_to_13xyz(template_seg).to(flows_gt.device)
-    normalization_term = torch.numel(template_seg[0,0]) / template_seg[0,0].nonzero().shape[0]  #TODO TEST
+    normalization_term = torch.numel(template_seg[0,0]) / template_seg[0,0].nonzero().shape[0]
     error = (calc_epe_error(flows_gt * template_seg, flows_pred * template_seg)) * normalization_term 
     return error
 
 def calc_error_on_surface(flows_gt, flows_pred, template_seg):
     surface_mask = torch.tensor(three_d_data_manager.extract_segmentation_envelope(torch_to_np(template_seg)))
     surface_mask = mask_xyz_to_13xyz(surface_mask).to(flows_gt.device)
-    normalization_term = torch.numel(surface_mask[0,0]) / surface_mask[0,0].nonzero().shape[0] #TODO TEST
+    normalization_term = torch.numel(surface_mask[0,0]) / surface_mask[0,0].nonzero().shape[0]
     error = (calc_epe_error(flows_gt * surface_mask, flows_pred * surface_mask)) * normalization_term 
     return error
 
