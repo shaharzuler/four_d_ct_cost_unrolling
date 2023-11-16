@@ -81,13 +81,18 @@ def calc_error_on_surface(flows_gt, flows_pred, template_seg):
 
 def calc_error_vs_distance(flows_pred, flows_gt, distance_validation_masks):
     distance_calculated_errors = {}
+    rel_distance_calculated_errors = {}
     for region_name, region in distance_validation_masks.items():
         distance_calculated_errors[region_name] = [[],[]]
+        rel_distance_calculated_errors[region_name] = [[],[]]
         for distance, distance_mask in region.items():
             distance_error = calc_error_in_mask(flows_gt, flows_pred, distance_mask)
+            denum_error = calc_error_in_mask(flows_gt, torch.zeros_like(flows_pred), distance_mask)
             distance_calculated_errors[region_name][0].append(distance)
             distance_calculated_errors[region_name][1].append(distance_error)
-    return distance_calculated_errors
+            rel_distance_calculated_errors[region_name][0].append(distance)
+            rel_distance_calculated_errors[region_name][1].append(distance_error/denum_error if denum_error>0 else 0)
+    return distance_calculated_errors, rel_distance_calculated_errors
 
 def get_error_vs_distance_plot_image(distance_validation_masks, distance_calculated_errors):
     plt.close()
@@ -96,7 +101,7 @@ def get_error_vs_distance_plot_image(distance_validation_masks, distance_calcula
     plt.xlabel("Distance [pixels]")
     plt.ylabel("Error")
     plt.legend(list(distance_validation_masks.keys()))
-    plt.ylim(0,10)
+    plt.ylim(0,8)
     plt.show()
     ftmp = tempfile.NamedTemporaryFile(suffix='.jpg', prefix='tmp', delete=False)
     ftmp.close()

@@ -126,14 +126,21 @@ class TrainFramework(BaseTrainer):
         surface_error = calc_error_on_surface(flows_gt, flows_pred, validation_data["template_seg"])
         self.summary_writer.add_scalar('Validation Surface Error', surface_error, self.i_epoch)
 
-        distance_calculated_errors = calc_error_vs_distance(flows_pred, flows_gt, distance_validation_masks)
+        distance_calculated_errors, rel_distance_calculated_errors = calc_error_vs_distance(flows_pred, flows_gt, distance_validation_masks)
+
         for region_name, region in distance_calculated_errors.items():
             for distance, distance_error in zip(*region):
                 self.summary_writer.add_scalar(f'Distance {region_name} Validation Error/{distance}', np.array(distance_error), self.i_epoch)
         
         error_vs_dist_plot = get_error_vs_distance_plot_image(distance_validation_masks, distance_calculated_errors)   
         self.summary_writer.add_images(f'Distance Validation Error', error_vs_dist_plot, self.i_epoch, dataformats='NHWC')
-
+        
+        for region_name, region in rel_distance_calculated_errors.items():
+            for distance, distance_error in zip(*region):
+                self.summary_writer.add_scalar(f'Distance {region_name} Relative Validation Error/{distance}', np.array(distance_error), self.i_epoch)
+        
+        rel_error_vs_dist_plot = get_error_vs_distance_plot_image(distance_validation_masks, rel_distance_calculated_errors)   
+        self.summary_writer.add_images(f'Relative Distance Validation Error', rel_error_vs_dist_plot, self.i_epoch, dataformats='NHWC')
 
     def add_flow_error_vis_to_tensorboard(self, flows_pred:torch.Tensor, flows_gt:torch.Tensor, two_d_constraints:torch.Tensor=None, **qwargs) -> None: 
         flow_colors_error_disp = disp_flow_error_colors(torch_to_np(flows_pred[0]), torch_to_np(flows_gt[0]), torch_to_np(two_d_constraints[0]) if two_d_constraints is not None else None)
