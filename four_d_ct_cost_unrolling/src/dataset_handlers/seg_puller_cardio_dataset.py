@@ -4,6 +4,7 @@ import numpy as np
 from torch.utils.data import Dataset
 import torch
 from scipy import ndimage 
+from scipy.ndimage import binary_dilation, binary_erosion
 from flow_n_corr_utils import xyz3_to_3xyz
 
 from .data_sample import SegmentationPullerSampleArgs, SegmentationPullerSample, SegmentationPullerSampleWithConstraintsArgs, SegmentationPullerSampleWithConstraints
@@ -38,8 +39,7 @@ class SegmentationPullerCardioDataset(Dataset):
 
 
     def _create_distance_validation_masks(self, num_pixels_validate_inside_seg:int, num_pixels_validate_outside_seg:int):
-        from scipy.ndimage import binary_dilation, binary_erosion
-        validation_masks = {"in": {}, "out": {}}
+        validation_masks = {"in": {}, "out": {}} # TODO merge in and out to single function
 
         last_dilated = (self.sample.template_seg).cpu().numpy()
         for i_out in range(1, num_pixels_validate_outside_seg+1): 

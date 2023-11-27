@@ -1,5 +1,7 @@
 import time
 from typing import Any, Dict, List, Tuple
+import json
+import os
 
 from scipy.ndimage.interpolation import zoom as zoom
 import torch
@@ -115,7 +117,6 @@ class TrainFramework(BaseTrainer):
 
         return processed_validation_data
         
-
     def _compute_and_plot_validation_errors(self, validation_data, flows_pred, flows_gt, distance_validation_masks, **qwargs):
         complete_error = calc_epe_error(flows_gt, flows_pred)
         self.summary_writer.add_scalar('Validation Error',complete_error,self.i_epoch)
@@ -128,11 +129,17 @@ class TrainFramework(BaseTrainer):
 
         distance_calculated_errors, rel_distance_calculated_errors = calc_error_vs_distance(flows_pred, flows_gt, distance_validation_masks)
 
+        if self.i_iter % (100*self.args.record_freq) == 0: #TODO set another record_freq arg. #TODO add folder for distance_errors.
+            with open(os.path.join(self.output_root, f'absolute_distance_errors_iter_{self.i_iter}.json'), 'w') as f:
+                f.write(json.dumps(distance_calculated_errors, indent=4) )
+            with open(os.path.join(self.output_root, f'relative_distance_errors_iter_{self.i_iter}.json'), 'w') as f:
+                f.write(json.dumps(rel_distance_calculated_errors, indent=4) )
+
         for region_name, region in distance_calculated_errors.items():
             for distance, distance_error in zip(*region):
                 self.summary_writer.add_scalar(f'Distance {region_name} Validation Error/{distance}', np.array(distance_error), self.i_epoch)
         
-        error_vs_dist_plot = get_error_vs_distance_plot_image(distance_validation_masks, distance_calculated_errors)   
+        error_vs_dist_plot = get_error_vs_distance_plot_image(distance_validation_masks, distance_calculated_errors)    # TODO merge funcs
         self.summary_writer.add_images(f'Distance Validation Error', error_vs_dist_plot, self.i_epoch, dataformats='NHWC')
         
         for region_name, region in rel_distance_calculated_errors.items():
