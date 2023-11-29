@@ -13,8 +13,17 @@ from .models.pwc3d_w_2d_constraints import PWC3Dw2dConstraints
 
 
 
-def overfit_backbone(template_image_path:str, unlabeled_image_path:str, template_seg_path:str, unlabeled_seg_path:str, flows_gt_path:str=None, args:Dict=None) -> str: 
-    data_sample_args = SegmentationPullerSampleArgs(template_image_path, unlabeled_image_path, template_seg_path, unlabeled_seg_path, flows_gt_path, args.num_pixels_validate_inside_seg, args.num_pixels_validate_outside_seg)
+def overfit_backbone(
+    template_image_path:str, unlabeled_image_path:str, 
+    template_LV_seg_path:str, unlabeled_LV_seg_path:str, 
+    template_shell_seg_path:str, unlabeled_shell_seg_path:str, 
+    flows_gt_path:str=None, args:Dict=None) -> str: 
+
+    data_sample_args = SegmentationPullerSampleArgs(
+        template_image_path, unlabeled_image_path, 
+        template_LV_seg_path, unlabeled_LV_seg_path, 
+        template_shell_seg_path, unlabeled_shell_seg_path,
+        flows_gt_path, args.num_pixels_validate_inside_seg, args.num_pixels_validate_outside_seg)
     train_set = SegmentationPullerCardioDataset(data_sample_args, sample_type=SegmentationPullerSample, scale_down_by=args.scale_down_by)
     model = PWC3D(args)
     loss = get_loss(args)
@@ -22,20 +31,36 @@ def overfit_backbone(template_image_path:str, unlabeled_image_path:str, template
     output_path = trainer.train(args.cuda_device)
     return output_path
 
-def infer_backbone(template_image_path:str, unlabeled_image_path:str, template_seg_path:str, unlabeled_seg_path:str, flows_gt_path:str=None, args:Dict=None):
-    data_sample_args = SegmentationPullerSampleArgs(template_image_path, unlabeled_image_path, template_seg_path, unlabeled_seg_path, flows_gt_path)
+def infer_backbone(
+    template_image_path:str, unlabeled_image_path:str, 
+    template_LV_seg_path:str, unlabeled_LV_seg_path:str, 
+    template_shell_seg_path:str, unlabeled_shell_seg_path:str, 
+    flows_gt_path:str=None, args:Dict=None):
+
+    data_sample_args = SegmentationPullerSampleArgs(
+        template_image_path, unlabeled_image_path, 
+        template_LV_seg_path, unlabeled_LV_seg_path, 
+        template_shell_seg_path, unlabeled_shell_seg_path,
+        flows_gt_path)
     train_set = SegmentationPullerCardioDataset(data_sample_args, sample_type=SegmentationPullerSample, scale_down_by=args.scale_down_by)
     model = PWC3D(args)
     trainer = PullSegmentationMapTrainFramework(train_set, model, None, args)
     output_path = trainer.infer(args.cuda_device)
     return output_path
 
-def overfit_w_constraints(template_image_path:str, unlabeled_image_path:str, template_seg_path:str, unlabeled_seg_path:str, two_d_constraints_path:str, flows_gt_path:str=None, args:Dict=None) -> str:
+def overfit_w_constraints(
+    template_image_path:str, unlabeled_image_path:str, 
+    template_LV_seg_path:str, unlabeled_LV_seg_path:str, 
+    template_shell_seg_path:str, unlabeled_shell_seg_path:str, 
+    two_d_constraints_path:str, flows_gt_path:str=None, args:Dict=None) -> str:
+
     data_sample_args = SegmentationPullerSampleWithConstraintsArgs(
         template_image_path=template_image_path, 
         unlabeled_image_path=unlabeled_image_path, 
-        template_seg_path=template_seg_path, 
-        unlabeled_seg_path=unlabeled_seg_path, 
+        template_LV_seg_path=template_LV_seg_path, 
+        unlabeled_LV_seg_path=unlabeled_LV_seg_path, 
+        template_shell_seg_path=template_shell_seg_path, 
+        unlabeled_shell_seg_path=template_shell_seg_path,
         flows_gt_path=flows_gt_path,
         num_pixels_validate_inside_seg=args.num_pixels_validate_inside_seg, 
         num_pixels_validate_outside_seg=args.num_pixels_validate_outside_seg,
@@ -47,11 +72,19 @@ def overfit_w_constraints(template_image_path:str, unlabeled_image_path:str, tem
     output_path = trainer.train(args.cuda_device)
     return output_path
 
-def infer_w_constraints(template_image_path:str, unlabeled_image_path:str, template_seg_path:str, unlabeled_seg_path:str, save_mask:bool, two_d_constraints_path:str, flows_gt_path:str=None, args:Dict=None) -> None:
+def infer_w_constraints(
+    template_image_path:str, unlabeled_image_path:str, 
+    template_LV_seg_path:str, unlabeled_LV_seg_path:str, 
+    template_shell_seg_path:str, unlabeled_shell_seg_path:str, 
+    save_mask:bool, two_d_constraints_path:str, 
+    flows_gt_path:str=None, args:Dict=None) -> None:
+
     data_sample_args = SegmentationPullerSampleWithConstraintsArgs(template_image_path=template_image_path, 
         unlabeled_image_path=unlabeled_image_path, 
-        template_seg_path=template_seg_path, 
-        unlabeled_seg_path=unlabeled_seg_path, 
+        template_LV_seg_path=template_LV_seg_path, 
+        unlabeled_LV_seg_path=unlabeled_LV_seg_path, 
+        template_shell_seg_path=template_shell_seg_path, 
+        unlabeled_shell_seg_path=template_shell_seg_path,
         flows_gt_path=flows_gt_path,
         two_d_constraints_path=two_d_constraints_path)
     train_set = SegmentationPullerCardioDatasetWithConstraints(data_sample_args, scale_down_by=args.scale_down_by)

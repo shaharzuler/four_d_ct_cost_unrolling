@@ -17,8 +17,10 @@ class SegmentationPullerCardioDataset(Dataset):
         self.sample = sample_type(**{
             'template_image' : torch.tensor(ndimage.zoom(np.load(dataset_args.template_image_path), 1/scale_down_by)),  
             'unlabeled_image' : torch.tensor(ndimage.zoom(np.load(dataset_args.unlabeled_image_path), 1/scale_down_by)),   
-            'template_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.template_seg_path), 1/scale_down_by, order=0)), 
-            'unlabeled_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.unlabeled_seg_path), 1/scale_down_by, order=0))
+            'template_LV_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.template_LV_seg_path), 1/scale_down_by, order=0)), 
+            'unlabeled_LV_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.unlabeled_LV_seg_path), 1/scale_down_by, order=0)),
+            'template_shell_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.template_shell_seg_path), 1/scale_down_by, order=0)), 
+            'unlabeled_shell_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.unlabeled_shell_seg_path), 1/scale_down_by, order=0))
             })
 
         if dataset_args.flows_gt_path is not None:
@@ -41,14 +43,14 @@ class SegmentationPullerCardioDataset(Dataset):
     def _create_distance_validation_masks(self, num_pixels_validate_inside_seg:int, num_pixels_validate_outside_seg:int):
         validation_masks = {"in": {}, "out": {}} # TODO merge in and out to single function
 
-        last_dilated = (self.sample.template_seg).cpu().numpy()
+        last_dilated = (self.sample.template_LV_seg).cpu().numpy()
         for i_out in range(1, num_pixels_validate_outside_seg+1): 
             dilated = binary_dilation(last_dilated)
             mask = dilated ^ last_dilated
             validation_masks["out"][i_out] = mask
             last_dilated = dilated
 
-        last_erosed = (self.sample.template_seg).cpu().numpy()
+        last_erosed = (self.sample.template_LV_seg).cpu().numpy()
         for i_in in range(1, num_pixels_validate_inside_seg+1): 
             erosed = binary_erosion(last_erosed)
             mask = erosed ^ last_erosed
@@ -76,7 +78,7 @@ class SegmentationPullerCardioDatasetWithConstraints(SegmentationPullerCardioDat
         # two_d_constraints_arr = ndimage.zoom(np.load(dataset_args.two_d_constraints_path), (1/scale_down_by,1/scale_down_by,1/scale_down_by,1),order=0) / scale_down_by# a np arr shape x,y,z,3 with mostly np.Nans and some floats. 
         two_d_constraints_arr = np.load(dataset_args.two_d_constraints_path)[::scale_down_by, ::scale_down_by, ::scale_down_by, :] / scale_down_by# a np arr shape x,y,z,3 with mostly np.Nans and some floats. 
 
-        two_d_constraints_raw = attach_flow_between_segs(two_d_constraints_arr.copy(), torch_to_np(self.sample.template_seg).copy())
+        two_d_constraints_raw = attach_flow_between_segs(two_d_constraints_arr.copy(), torch_to_np(self.sample.template_LV_seg).copy())
         two_d_constraints_processed = self.preprocess_2d_constraints(two_d_constraints_raw.copy()) 
         two_d_constraints_raw_with_nans_transposed = xyz3_to_3xyz(two_d_constraints_raw.copy()) 
         self.sample.two_d_constraints_with_nans = xyz3_to_3xyz(two_d_constraints_processed.copy()) 

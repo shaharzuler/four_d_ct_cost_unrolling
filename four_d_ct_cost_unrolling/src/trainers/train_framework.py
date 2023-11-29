@@ -121,10 +121,13 @@ class TrainFramework(BaseTrainer):
         complete_error = calc_epe_error(flows_gt, flows_pred)
         self.summary_writer.add_scalar('Validation Error',complete_error,self.i_epoch)
         
-        volume_error = calc_error_in_mask(flows_gt, flows_pred, validation_data["template_seg"])
-        self.summary_writer.add_scalar('Validation LV Volume Error', volume_error, self.i_epoch)
+        LV_volume_error = calc_error_in_mask(flows_gt, flows_pred, validation_data["template_LV_seg"])
+        self.summary_writer.add_scalar('Validation LV Volume Error', LV_volume_error, self.i_epoch)
 
-        surface_error = calc_error_on_surface(flows_gt, flows_pred, validation_data["template_seg"])
+        shell_volume_error = calc_error_in_mask(flows_gt, flows_pred, validation_data["template_shell_seg"])
+        self.summary_writer.add_scalar('Validation shell Volume Error', shell_volume_error, self.i_epoch)
+
+        surface_error = calc_error_on_surface(flows_gt, flows_pred, validation_data["template_LV_seg"])
         self.summary_writer.add_scalar('Validation Surface Error', surface_error, self.i_epoch)
 
         distance_calculated_errors, rel_distance_calculated_errors = calc_error_vs_distance(flows_pred, flows_gt, distance_validation_masks)

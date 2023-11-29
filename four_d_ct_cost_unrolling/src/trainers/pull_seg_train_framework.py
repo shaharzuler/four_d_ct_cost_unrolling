@@ -61,20 +61,22 @@ class PullSegmentationMapTrainFramework(TrainFramework):
                 "flows_gt": data["flows_gt"]
                 }
             }
-        if "template_seg" in data.keys():
-            validation_data["synt_validate"]["template_seg"] =  data["template_seg"][0]
+        if "template_LV_seg" in data.keys():
+            validation_data["synt_validate"]["template_LV_seg"] =  data["template_LV_seg"][0]
+            validation_data["synt_validate"]["template_shell_seg"] =  data["template_shell_seg"][0]
             validation_data["synt_validate"]["distance_validation_masks"] =  data["distance_validation_masks"]
         return validation_data
 
     def _visualize(self, data:Dict, pred_flow:torch.Tensor, res_dict:Dict=None) -> None: 
         self._add_orig_images_to_tensorboard(data, pred_flow)
         img1_recons_disp = self._add_warped_image_to_tensorboard(data, pred_flow)
-        self._add_warped_seg_mask_to_tensorboard(data, pred_flow, img1_recons_disp)
+        self._add_warped_seg_mask_to_tensorboard(data, pred_flow, img1_recons_disp, mask_name="unlabeled_LV_seg")
+        self._add_warped_seg_mask_to_tensorboard(data, pred_flow, img1_recons_disp, mask_name="unlabeled_shell_seg")
         self._add_flow_arrows_on_mask_contours_to_tensorboard(data, torch_to_np(pred_flow[0]), res_dict)
         
     def _add_flow_arrows_on_mask_contours_to_tensorboard(self, data, pred_flow, _) -> None:
         img1 = torch_to_np(data["template_image"][0])
-        seg = torch_to_np(data["template_seg"][0])
+        seg = torch_to_np(data["template_LV_seg"][0])
         flow_arrowed_disp = disp_flow_as_arrows(img1, seg, pred_flow, text="prediction", arrow_scale_factor=self.args.visualization_arrow_scale_factor)
         if len(data["flows_gt"].shape) > 1:
             flows_gt = torch_to_np(data["flows_gt"][0])
@@ -82,11 +84,11 @@ class PullSegmentationMapTrainFramework(TrainFramework):
             flow_arrowed_disp = np.concatenate([flow_arrowed_disp, gt_flow_arrowed_disp], axis=2)
         self.summary_writer.add_images('sample_flows', flow_arrowed_disp, self.i_epoch, dataformats='NCHW')
 
-    def _add_warped_seg_mask_to_tensorboard(self, data:Dict, pred_flow:torch.Tensor, img1_recons_disp:np.ndarray) -> None:
-        unlabeled_seg_map = data["unlabeled_seg"]
+    def _add_warped_seg_mask_to_tensorboard(self, data:Dict, pred_flow:torch.Tensor, img1_recons_disp:np.ndarray, mask_name:str) -> None:
+        unlabeled_seg_map = data[mask_name]
         seg_reconst = torch_to_np(flow_warp(unlabeled_seg_map.unsqueeze(0).float(), pred_flow, mode="nearest")).astype(bool)[0]
         warp_w_mask_disp = add_mask(img1_recons_disp[0], torch_to_np(unlabeled_seg_map)[0], seg_reconst[0])
-        self.summary_writer.add_images(f'warped_seg', warp_w_mask_disp, self.i_epoch, dataformats='NHWC')
+        self.summary_writer.add_images(f'warped_{mask_name}', warp_w_mask_disp, self.i_epoch, dataformats='NHWC')
 
     def _add_warped_image_to_tensorboard(self, data:Dict, pred_flow:torch.Tensor) -> np.ndarray: 
         img1_recons = flow_warp(data["unlabeled_image"].unsqueeze(0), pred_flow)[0]
@@ -113,12 +115,13 @@ class PullSegmentationMapTrainFramework(TrainFramework):
                     print(f"Applying median filter on axis {axis}")
                     flow_tensor[:,axis,:,:,:] = torch.tensor(scipy.ndimage.median_filter(input=torch_to_np(flow_tensor[:,axis,:,:]), size=self.inference_args.inference_flow_median_filter_size))
             if save_mask:
-                self.warp_and_save_mask(data, flow_tensor) 
+                self.warp_and_save_mask(data, flow_tensor, mask_name="template_LV_seg") 
+                self.warp_and_save_mask(data, flow_tensor, mask_name="template_shell_seg") 
         return self.output_root
 
-    def warp_and_save_mask(self, data:Dict[str,torch.Tensor], flow:torch.Tensor, save_nrrd:bool=False) -> None: 
-        template_seg_map = data["template_seg"] 
-        seg_reconst = flow_warp(template_seg_map.unsqueeze(0).float(), flow.cpu(), mode="nearest")
+    def warp_and_save_mask(self, data:Dict[str,torch.Tensor], flow:torch.Tensor, mask_name:str, save_nrrd:bool=False) -> None: 
+        seg_map = data[mask_name] 
+        seg_reconst = flow_warp(seg_map.unsqueeze(0).float(), flow.cpu(), mode="nearest")
         seg_reconst = torch_to_np(seg_reconst)[0,0,:,:,:].astype(bool)
 
         Path(self.inference_args.output_warped_seg_maps_dir).mkdir(parents=True, exist_ok=True)
