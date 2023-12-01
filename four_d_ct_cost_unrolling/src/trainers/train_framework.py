@@ -123,12 +123,18 @@ class TrainFramework(BaseTrainer):
         
         LV_volume_error = calc_error_in_mask(flows_gt, flows_pred, validation_data["template_LV_seg"])
         self.summary_writer.add_scalar('Validation LV Volume Error', LV_volume_error, self.i_epoch)
+        LV_volume_denum = calc_error_in_mask(flows_gt, torch.zeros_like(flows_pred), validation_data["template_LV_seg"])
+        self.summary_writer.add_scalar('Validation LV Volume Relative Error', (LV_volume_error/LV_volume_denum) if LV_volume_denum > 0 else 0, self.i_epoch)
 
         shell_volume_error = calc_error_in_mask(flows_gt, flows_pred, validation_data["template_shell_seg"])
         self.summary_writer.add_scalar('Validation shell Volume Error', shell_volume_error, self.i_epoch)
+        shell_volume_denum = calc_error_in_mask(flows_gt, torch.zeros_like(flows_pred), validation_data["template_shell_seg"])
+        self.summary_writer.add_scalar('Validation shell Volume Relative Error', (shell_volume_error/shell_volume_denum) if shell_volume_denum > 0 else 0, self.i_epoch)
 
         surface_error = calc_error_on_surface(flows_gt, flows_pred, validation_data["template_LV_seg"])
         self.summary_writer.add_scalar('Validation Surface Error', surface_error, self.i_epoch)
+        surface_denum = calc_error_on_surface(flows_gt, torch.zeros_like(flows_pred), validation_data["template_LV_seg"])
+        self.summary_writer.add_scalar('Validation Surface Relative Error', (surface_error/surface_denum) if surface_denum > 0 else 0, self.i_epoch)
 
         distance_calculated_errors, rel_distance_calculated_errors = calc_error_vs_distance(flows_pred, flows_gt, distance_validation_masks)
 
