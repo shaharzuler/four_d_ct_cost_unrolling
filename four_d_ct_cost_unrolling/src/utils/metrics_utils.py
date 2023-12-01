@@ -109,3 +109,10 @@ def get_error_vs_distance_plot_image(distance_validation_masks, distance_calcula
     error_vs_dist_plot = np.expand_dims(plt.imread(ftmp.name), 0)
     os.remove(ftmp.name)
     return error_vs_dist_plot
+
+
+def calc_iou(mask1:np.ndarray, mask2:np.ndarray) -> float: 
+    intersection = np.logical_and(mask1, mask2).sum()
+    union = np.logical_or(mask1, mask2).sum()
+    iou = intersection/union
+    return iou
