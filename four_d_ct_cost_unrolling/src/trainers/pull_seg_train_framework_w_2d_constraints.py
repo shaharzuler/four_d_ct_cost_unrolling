@@ -52,7 +52,7 @@ class PullSegmentationMapTrainFrameworkWith2dConstraints(PullSegmentationMapTrai
             flows_gt = torch_to_np(data["flows_gt"][0])
             gt_flow_arrowed_disp = disp_flow_as_arrows(img1, seg, flows_gt, text="ground truth", arrow_scale_factor=self.args.visualization_arrow_scale_factor)
             all_flow_arrowed_disp = np.concatenate([all_flow_arrowed_disp, gt_flow_arrowed_disp], axis=2)
-        self.summary_writer.add_images('sample_flows', all_flow_arrowed_disp, self.i_epoch, dataformats='NCHW')
+        self.complete_summary_writer.add_images('sample_flows', all_flow_arrowed_disp, self.i_epoch, dataformats='NCHW')
 
     def _create_validation_data(self, avg_loss, flows, data):
         validation_data = super()._create_validation_data(avg_loss, flows, data)

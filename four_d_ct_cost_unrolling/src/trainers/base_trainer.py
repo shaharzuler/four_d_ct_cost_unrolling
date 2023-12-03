@@ -62,7 +62,8 @@ class BaseTrainer:
         self.rank = rank
 
         if update_tensorboard:
-            self.summary_writer = SummaryWriter(os.path.join(self.output_root, "summary"))
+            self.complete_summary_writer = SummaryWriter(os.path.join(self.output_root, "complete_summary")) 
+            self.filtered_summary_writer = SummaryWriter(os.path.join(self.output_root, "filtered_summary")) 
         
         self.train_loader = self._get_dataloader(self.train_set)
 

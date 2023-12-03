@@ -45,7 +45,7 @@ class TrainFramework(BaseTrainer):
     def update_to_tensorboard(self, key_meter_names:List[str], key_meters:AverageMeter) -> None:
         if self.i_iter % self.args.record_freq == 0:
             for v, name in zip(key_meters.val, key_meter_names):
-                self.summary_writer.add_scalar('Train_' + name, v, self.i_iter)
+                self.complete_summary_writer.add_scalar('Train_' + name, v, self.i_iter)
 
     def _optimize(self, loss:torch.Tensor) -> None:
         loss = loss.mean()
@@ -119,22 +119,26 @@ class TrainFramework(BaseTrainer):
         
     def _compute_and_plot_validation_errors(self, validation_data, flows_pred, flows_gt, distance_validation_masks, **qwargs):
         complete_error = calc_epe_error(flows_gt, flows_pred)
-        self.summary_writer.add_scalar('Validation Error',complete_error,self.i_epoch)
+        self.complete_summary_writer.add_scalar('Validation Error',complete_error,self.i_epoch)
         
         LV_volume_error = calc_error_in_mask(flows_gt, flows_pred, validation_data["template_LV_seg"])
-        self.summary_writer.add_scalar('Validation LV Volume Error', LV_volume_error, self.i_epoch)
+        self.complete_summary_writer.add_scalar('Validation LV Volume Error', LV_volume_error, self.i_epoch)
         LV_volume_denum = calc_error_in_mask(flows_gt, torch.zeros_like(flows_pred), validation_data["template_LV_seg"])
-        self.summary_writer.add_scalar('Validation LV Volume Relative Error', (LV_volume_error/LV_volume_denum) if LV_volume_denum > 0 else 0, self.i_epoch)
+        self.complete_summary_writer.add_scalar('Validation LV Volume Relative Error', (LV_volume_error/LV_volume_denum) if LV_volume_denum > 0 else 0, self.i_epoch)
 
         shell_volume_error = calc_error_in_mask(flows_gt, flows_pred, validation_data["template_shell_seg"])
-        self.summary_writer.add_scalar('Validation shell Volume Error', shell_volume_error, self.i_epoch)
+        self.complete_summary_writer.add_scalar('Validation shell Volume Error', shell_volume_error, self.i_epoch)
+        self.filtered_summary_writer.add_scalar('Validation shell Volume Error', shell_volume_error, self.i_epoch)
         shell_volume_denum = calc_error_in_mask(flows_gt, torch.zeros_like(flows_pred), validation_data["template_shell_seg"])
-        self.summary_writer.add_scalar('Validation shell Volume Relative Error', (shell_volume_error/shell_volume_denum) if shell_volume_denum > 0 else 0, self.i_epoch)
+        self.complete_summary_writer.add_scalar('Validation shell Volume Relative Error', (shell_volume_error/shell_volume_denum) if shell_volume_denum > 0 else 0, self.i_epoch)
+        self.filtered_summary_writer.add_scalar('Validation shell Volume Relative Error', (shell_volume_error/shell_volume_denum) if shell_volume_denum > 0 else 0, self.i_epoch)
 
         surface_error = calc_error_on_surface(flows_gt, flows_pred, validation_data["template_LV_seg"])
-        self.summary_writer.add_scalar('Validation Surface Error', surface_error, self.i_epoch)
+        self.complete_summary_writer.add_scalar('Validation Surface Error', surface_error, self.i_epoch)
+        self.filtered_summary_writer.add_scalar('Validation Surface Error', surface_error, self.i_epoch)
         surface_denum = calc_error_on_surface(flows_gt, torch.zeros_like(flows_pred), validation_data["template_LV_seg"])
-        self.summary_writer.add_scalar('Validation Surface Relative Error', (surface_error/surface_denum) if surface_denum > 0 else 0, self.i_epoch)
+        self.complete_summary_writer.add_scalar('Validation Surface Relative Error', (surface_error/surface_denum) if surface_denum > 0 else 0, self.i_epoch)
+        self.filtered_summary_writer.add_scalar('Validation Surface Relative Error', (surface_error/surface_denum) if surface_denum > 0 else 0, self.i_epoch)
 
         distance_calculated_errors, rel_distance_calculated_errors = calc_error_vs_distance(flows_pred, flows_gt, distance_validation_masks)
 
@@ -146,21 +150,23 @@ class TrainFramework(BaseTrainer):
 
         for region_name, region in distance_calculated_errors.items():
             for distance, distance_error in zip(*region):
-                self.summary_writer.add_scalar(f'Distance {region_name} Validation Error/{distance}', np.array(distance_error), self.i_epoch)
+                self.complete_summary_writer.add_scalar(f'Distance {region_name} Validation Error/{distance}', np.array(distance_error), self.i_epoch)
         
         error_vs_dist_plot = get_error_vs_distance_plot_image(distance_validation_masks, distance_calculated_errors)    # TODO merge funcs
-        self.summary_writer.add_images(f'Distance Validation Error', error_vs_dist_plot, self.i_epoch, dataformats='NHWC')
+        self.complete_summary_writer.add_images(f'Distance Validation Error', error_vs_dist_plot, self.i_epoch, dataformats='NHWC')
         
         for region_name, region in rel_distance_calculated_errors.items():
             for distance, distance_error in zip(*region):
-                self.summary_writer.add_scalar(f'Distance {region_name} Relative Validation Error/{distance}', np.array(distance_error), self.i_epoch)
+                self.complete_summary_writer.add_scalar(f'Distance {region_name} Relative Validation Error/{distance}', np.array(distance_error), self.i_epoch)
+                if region_name=="in" and distance < 10:
+                    self.filtered_summary_writer.add_scalar(f'Distance {region_name} Relative Validation Error/{distance}', np.array(distance_error), self.i_epoch)
         
         rel_error_vs_dist_plot = get_error_vs_distance_plot_image(distance_validation_masks, rel_distance_calculated_errors)   
-        self.summary_writer.add_images(f'Relative Distance Validation Error', rel_error_vs_dist_plot, self.i_epoch, dataformats='NHWC')
+        self.complete_summary_writer.add_images(f'Relative Distance Validation Error', rel_error_vs_dist_plot, self.i_epoch, dataformats='NHWC')
 
     def add_flow_error_vis_to_tensorboard(self, flows_pred:torch.Tensor, flows_gt:torch.Tensor, two_d_constraints:torch.Tensor=None, **qwargs) -> None: 
         flow_colors_error_disp = disp_flow_error_colors(torch_to_np(flows_pred[0]), torch_to_np(flows_gt[0]), torch_to_np(two_d_constraints[0]) if two_d_constraints is not None else None)
-        self.summary_writer.add_images(f'flow_error', flow_colors_error_disp, self.i_epoch, dataformats='NCHW')
+        self.complete_summary_writer.add_images(f'flow_error', flow_colors_error_disp, self.i_epoch, dataformats='NCHW')
 
 
     @torch.no_grad()

@@ -75,7 +75,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         self._add_warped_seg_mask_to_tensorboard(data, pred_flow, img1_recons_disp, mask_name="unlabeled_shell_seg")
 
         LV_iou = calc_iou(LV_seg_reconst, data["template_LV_seg"])
-        self.summary_writer.add_scalar("LV_IOU", LV_iou, self.i_iter)
+        self.complete_summary_writer.add_scalar("LV_IOU", LV_iou, self.i_iter)
 
         self._add_flow_arrows_on_mask_contours_to_tensorboard(data, torch_to_np(pred_flow[0]), res_dict)
     
@@ -87,26 +87,26 @@ class PullSegmentationMapTrainFramework(TrainFramework):
             flows_gt = torch_to_np(data["flows_gt"][0])
             gt_flow_arrowed_disp = disp_flow_as_arrows(img1, seg, flows_gt, text="ground truth", arrow_scale_factor=self.args.visualization_arrow_scale_factor)
             flow_arrowed_disp = np.concatenate([flow_arrowed_disp, gt_flow_arrowed_disp], axis=2)
-        self.summary_writer.add_images('sample_flows', flow_arrowed_disp, self.i_epoch, dataformats='NCHW')
+        self.complete_summary_writer.add_images('sample_flows', flow_arrowed_disp, self.i_epoch, dataformats='NCHW')
 
     def _add_warped_seg_mask_to_tensorboard(self, data:Dict, pred_flow:torch.Tensor, img1_recons_disp:np.ndarray, mask_name:str) -> np.ndarray:
         unlabeled_seg_map = data[mask_name]
         seg_reconst = torch_to_np(flow_warp(unlabeled_seg_map.unsqueeze(0).float(), pred_flow, mode="nearest")).astype(bool)[0]
         warp_w_mask_disp = add_mask(img1_recons_disp[0], torch_to_np(unlabeled_seg_map)[0], seg_reconst[0])
-        self.summary_writer.add_images(f'warped_{mask_name}', warp_w_mask_disp, self.i_epoch, dataformats='NHWC')
+        self.complete_summary_writer.add_images(f'warped_{mask_name}', warp_w_mask_disp, self.i_epoch, dataformats='NHWC')
 
         return seg_reconst
 
     def _add_warped_image_to_tensorboard(self, data:Dict, pred_flow:torch.Tensor) -> np.ndarray: 
         img1_recons = flow_warp(data["unlabeled_image"].unsqueeze(0), pred_flow)[0]
         img1_recons_disp = disp_warped_img(torch_to_np(data["template_image"][0]), torch_to_np(img1_recons[0]), torch_to_np(data["unlabeled_image"][0]))
-        self.summary_writer.add_images(f'warped_image', img1_recons_disp, self.i_epoch, dataformats='NHWC')
+        self.complete_summary_writer.add_images(f'warped_image', img1_recons_disp, self.i_epoch, dataformats='NHWC')
         
         return img1_recons_disp
 
     def _add_orig_images_to_tensorboard(self, data:Dict[str,torch.Tensor], pred_flow:torch.Tensor) -> None:
         imgs_disp = disp_training_fig(torch_to_np(data["template_image"][0]), torch_to_np(data["unlabeled_image"][0]), torch_to_np(pred_flow[0]))
-        self.summary_writer.add_images(f'original_images+pred_flow', imgs_disp, self.i_epoch, dataformats='NCHW')
+        self.complete_summary_writer.add_images(f'original_images+pred_flow', imgs_disp, self.i_epoch, dataformats='NCHW')
 
     def infer(self, rank:int, save_mask:bool=True) -> str:
         self._init_rank(rank, update_tensorboard=False)
