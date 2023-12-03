@@ -16,8 +16,8 @@ class PullSegmentationMapTrainFrameworkWithSegmentation(PullSegmentationMapTrain
     
     def _prepare_data(self, d:Dict) -> Dict:
         data = super()._prepare_data(d)
-        data["template_LV_seg"] = d["template_LV_seg"]
-        data["unlabeled_LV_seg"]= d["unlabeled_LV_seg"]
+        data["template_shell_seg"] = d["template_shell_seg"]
+        data["unlabeled_shell_seg"]= d["unlabeled_shell_seg"]
         return data
 
     def _init_key_meters(self) -> Tuple[List,AverageMeter]:
@@ -36,5 +36,5 @@ class PullSegmentationMapTrainFrameworkWithSegmentation(PullSegmentationMapTrain
         l_segmentation = 0.0
         for loss_, module_ in self.loss_modules.items():
             if "segmentation" in loss_:
-                l_segmentation = module_(flows, data["template_LV_seg"].to(flows[0].device), data['unlabeled_LV_seg'].to(flows[0].device))
+                l_segmentation = module_(flows, data["template_shell_seg"].to(flows[0].device), data['unlabeled_shell_seg'].to(flows[0].device))
         return l_segmentation
