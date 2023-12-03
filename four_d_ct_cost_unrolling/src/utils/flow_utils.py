@@ -63,13 +63,17 @@ def attach_flow_between_segs(constraints_arr:np.ndarray, seg_arr:np.ndarray) -> 
     restored_constraints_arr = _restore_constraints(constraints_arr, envelope_indices, closest_constraints_indices)
     return restored_constraints_arr
 
+def get_scale_factor(flow_tensor, target_shape):
+    scale_factor = np.array(target_shape[2:])/np.array(flow_tensor[2:]) + 0.00000001 
+    return scale_factor
+
+
 def rescale_flow_tensor(flow_tensor:torch.Tensor, target_shape:Tuple[int,int,int,int,int], mode:str="area", return_scale_factor=False) -> Union[torch.Tensor,Tuple[torch.Tensor, Tuple]]:
     """
     flow is a 5D arr shape n,3,x,y,z
     """
-    scale_factor = np.array(target_shape[2:])/np.array(flow_tensor.shape[2:])+0.001
+    scale_factor = get_scale_factor(flow_tensor.shape, target_shape) 
     if flow_tensor.shape != target_shape:
-        scale_factor = np.array(target_shape[2:])/np.array(flow_tensor.shape[2:])+0.001
         for i in range(3):
             flow_tensor[:,i,:,:,:] *= scale_factor[i]
         flow_tensor = F.interpolate(flow_tensor, scale_factor=tuple(scale_factor), mode=mode)

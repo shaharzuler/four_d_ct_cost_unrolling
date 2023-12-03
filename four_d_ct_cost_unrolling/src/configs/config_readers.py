@@ -15,6 +15,11 @@ def get_default_backbone_config() -> Dict:
     args = _get_config(json_path)
     return args
 
+def get_default_w_segmentation_config() -> Dict:
+    json_path = os.path.join('src','configs','w_segmentation_default_configs.json')
+    args = _get_config(json_path)
+    return args
+
 def get_default_w_constraints_config() -> Dict:
     json_path = os.path.join('src','configs','w_constraints_default_configs.json')
     args = _get_config(json_path)
