@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 import time
 import os
 from pathlib import Path
@@ -15,15 +16,16 @@ from flow_n_corr_utils import disp_warped_img, disp_training_fig, add_mask, disp
 from .train_framework import TrainFramework
 from ..utils.flow_utils import flow_warp
 from ..utils.torch_utils import torch_to_np
-from ..utils.metrics_utils import calc_iou
+from ..utils.metrics_utils import AverageMeter, calc_iou
 
 
 class PullSegmentationMapTrainFramework(TrainFramework):
     def __init__(self, train_loader:Dataset, model:torch.nn.Module, loss_func:Dict[str,torch.nn.modules.Module], args:Dict) -> None:
         super().__init__(train_loader, model, loss_func, args) 
-        self.reduce_loss_delay : int = 0
-        self.max_reduce_loss_delay : int = args.max_reduce_loss_delay
+        self.metric_dropping_patience : int = 0
+        self.max_metric_not_dropping_patience : int = args.max_metric_not_dropping_patience
         self.inference_args = args.inference_args
+        self.metric_for_early_stopping = args.metric_for_early_stopping
 
     def _run_one_epoch(self) -> bool:
         am_batch_time, am_data_time, key_meter_names, key_meters, end = self._init_epoch()
@@ -50,9 +52,29 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         validation_data = self._create_validation_data(avg_loss, flows, data)            
         self._validate(validation_data=validation_data)
 
-        self._update_loss_dropping(avg_loss)
+        metric_measurement = self.get_metric_measurement(self.metric_for_early_stopping, [key_meters, validation_data])
+        self._update_metric_dropping(metric_measurement) 
+
         break_ = self._decide_on_early_stop()
         return break_
+
+    def get_metric_measurement(self, metric_name, metric_holders): # TODO can probably move to base class or at least be partially implemented there
+        if metric_name in self.current_validation_errors.keys():
+            return self.current_validation_errors[metric_name]
+        else:
+            for holder in metric_holders:
+                if type(holder) == AverageMeter:
+                    try:
+                        return holder.get_avg_meter_name(metric_name)
+                    except ValueError:
+                        return None
+                elif type(holder) == dict:
+                    for k, v in holder.items():
+                        if metric_name in v.keys():
+                            return v[metric_name]
+                else:
+                    return None
+
 
     def _create_validation_data(self, avg_loss, flows, data):
         validation_data = {

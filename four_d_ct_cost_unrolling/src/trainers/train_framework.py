@@ -92,9 +92,10 @@ class TrainFramework(BaseTrainer):
             if "basic" in self.args.valid_type: 
                 self._validate_self(validation_data["validate_self"])
 
-    def _validate_basic(self, validate_data:Dict) -> None: # optional - also validate by iou
-        if self.i_iter > self.args.save_iter:
-            self._save_model(validate_data["avg_loss"], name=self.model_suffix) 
+    def _validate_basic(self, validate_data:Dict) -> None:
+        if self.i_iter >= self.args.min_save_iter:
+            self._save_model(self.current_validation_errors[self.metric_for_early_stopping], name=self.model_suffix, save_iter_freq=self.args.save_iter_freq) 
+
 
     def _validate_self(self, validate_self_data:Dict) -> None:
         self._validate_basic(validate_self_data) 
@@ -118,50 +119,51 @@ class TrainFramework(BaseTrainer):
         return processed_validation_data
         
     def _compute_and_plot_validation_errors(self, validation_data, flows_pred, flows_gt, distance_validation_masks, **qwargs):
-        complete_error = calc_epe_error(flows_gt, flows_pred)
-        self.complete_summary_writer.add_scalar('Validation Error',complete_error,self.i_epoch)
+        self.current_validation_errors = {}
+        self.current_validation_errors["complete_error"] = calc_epe_error(flows_gt, flows_pred)
+        self.complete_summary_writer.add_scalar('Validation Error',self.current_validation_errors["complete_error"], self.i_epoch)
         
-        LV_volume_error = calc_error_in_mask(flows_gt, flows_pred, validation_data["template_LV_seg"])
-        self.complete_summary_writer.add_scalar('Validation LV Volume Error', LV_volume_error, self.i_epoch)
-        LV_volume_denum = calc_error_in_mask(flows_gt, torch.zeros_like(flows_pred), validation_data["template_LV_seg"])
-        self.complete_summary_writer.add_scalar('Validation LV Volume Relative Error', (LV_volume_error/LV_volume_denum) if LV_volume_denum > 0 else 0, self.i_epoch)
+        self.current_validation_errors["LV_volume_error"] = calc_error_in_mask(flows_gt, flows_pred, validation_data["template_LV_seg"])
+        self.complete_summary_writer.add_scalar('Validation LV Volume Error', self.current_validation_errors["LV_volume_error"], self.i_epoch)
+        self.current_validation_errors["LV_volume_denum"] = calc_error_in_mask(flows_gt, torch.zeros_like(flows_pred), validation_data["template_LV_seg"])
+        self.complete_summary_writer.add_scalar('Validation LV Volume Relative Error', (self.current_validation_errors["LV_volume_error"]/self.current_validation_errors["LV_volume_denum"]) if self.current_validation_errors["LV_volume_denum"] > 0 else 0, self.i_epoch)
 
-        shell_volume_error = calc_error_in_mask(flows_gt, flows_pred, validation_data["template_shell_seg"])
-        self.complete_summary_writer.add_scalar('Validation shell Volume Error', shell_volume_error, self.i_epoch)
-        self.filtered_summary_writer.add_scalar('Validation shell Volume Error', shell_volume_error, self.i_epoch)
-        shell_volume_denum = calc_error_in_mask(flows_gt, torch.zeros_like(flows_pred), validation_data["template_shell_seg"])
-        self.complete_summary_writer.add_scalar('Validation shell Volume Relative Error', (shell_volume_error/shell_volume_denum) if shell_volume_denum > 0 else 0, self.i_epoch)
-        self.filtered_summary_writer.add_scalar('Validation shell Volume Relative Error', (shell_volume_error/shell_volume_denum) if shell_volume_denum > 0 else 0, self.i_epoch)
+        self.current_validation_errors["shell_volume_error"] = calc_error_in_mask(flows_gt, flows_pred, validation_data["template_shell_seg"])
+        self.complete_summary_writer.add_scalar('Validation Shell Volume Error', self.current_validation_errors["shell_volume_error"], self.i_epoch)
+        self.filtered_summary_writer.add_scalar('Validation Shell Volume Error', self.current_validation_errors["shell_volume_error"], self.i_epoch)
+        self.current_validation_errors["shell_volume_denum"] = calc_error_in_mask(flows_gt, torch.zeros_like(flows_pred), validation_data["template_shell_seg"])
+        self.complete_summary_writer.add_scalar('Validation Shell Volume Relative Error', (self.current_validation_errors["shell_volume_error"]/self.current_validation_errors["shell_volume_denum"]) if self.current_validation_errors["shell_volume_denum"] > 0 else 0, self.i_epoch)
+        self.filtered_summary_writer.add_scalar('Validation Shell Volume Relative Error', (self.current_validation_errors["shell_volume_error"]/self.current_validation_errors["shell_volume_denum"]) if self.current_validation_errors["shell_volume_denum"] > 0 else 0, self.i_epoch)
 
-        surface_error = calc_error_on_surface(flows_gt, flows_pred, validation_data["template_LV_seg"])
-        self.complete_summary_writer.add_scalar('Validation Surface Error', surface_error, self.i_epoch)
-        self.filtered_summary_writer.add_scalar('Validation Surface Error', surface_error, self.i_epoch)
-        surface_denum = calc_error_on_surface(flows_gt, torch.zeros_like(flows_pred), validation_data["template_LV_seg"])
-        self.complete_summary_writer.add_scalar('Validation Surface Relative Error', (surface_error/surface_denum) if surface_denum > 0 else 0, self.i_epoch)
-        self.filtered_summary_writer.add_scalar('Validation Surface Relative Error', (surface_error/surface_denum) if surface_denum > 0 else 0, self.i_epoch)
+        self.current_validation_errors["surface_error"] = calc_error_on_surface(flows_gt, flows_pred, validation_data["template_LV_seg"])
+        self.complete_summary_writer.add_scalar('Validation Surface Error', self.current_validation_errors["surface_error"], self.i_epoch)
+        self.filtered_summary_writer.add_scalar('Validation Surface Error', self.current_validation_errors["surface_error"], self.i_epoch)
+        self.current_validation_errors["surface_denum"] = calc_error_on_surface(flows_gt, torch.zeros_like(flows_pred), validation_data["template_LV_seg"])
+        self.complete_summary_writer.add_scalar('Validation Surface Relative Error', (self.current_validation_errors["surface_error"]/self.current_validation_errors["surface_denum"]) if self.current_validation_errors["surface_denum"] > 0 else 0, self.i_epoch)
+        self.filtered_summary_writer.add_scalar('Validation Surface Relative Error', (self.current_validation_errors["surface_error"]/self.current_validation_errors["surface_denum"]) if self.current_validation_errors["surface_denum"] > 0 else 0, self.i_epoch)
 
-        distance_calculated_errors, rel_distance_calculated_errors = calc_error_vs_distance(flows_pred, flows_gt, distance_validation_masks)
+        self.current_validation_errors["distance_calculated_errors"], self.current_validation_errors["rel_distance_calculated_errors"] = calc_error_vs_distance(flows_pred, flows_gt, distance_validation_masks)
 
         if self.i_iter % (100*self.args.record_freq) == 0: #TODO set another record_freq arg. #TODO add folder for distance_errors.
             with open(os.path.join(self.output_root, f'absolute_distance_errors_iter_{self.i_iter}.json'), 'w') as f:
-                f.write(json.dumps(distance_calculated_errors, indent=4) )
+                f.write(json.dumps(self.current_validation_errors["distance_calculated_errors"], indent=4) )
             with open(os.path.join(self.output_root, f'relative_distance_errors_iter_{self.i_iter}.json'), 'w') as f:
-                f.write(json.dumps(rel_distance_calculated_errors, indent=4) )
+                f.write(json.dumps(self.current_validation_errors["rel_distance_calculated_errors"], indent=4) )
 
-        for region_name, region in distance_calculated_errors.items():
+        for region_name, region in self.current_validation_errors["distance_calculated_errors"].items():
             for distance, distance_error in zip(*region):
                 self.complete_summary_writer.add_scalar(f'Distance {region_name} Validation Error/{distance}', np.array(distance_error), self.i_epoch)
         
-        error_vs_dist_plot = get_error_vs_distance_plot_image(distance_validation_masks, distance_calculated_errors)    # TODO merge funcs
+        error_vs_dist_plot = get_error_vs_distance_plot_image(distance_validation_masks, self.current_validation_errors["distance_calculated_errors"])    # TODO merge funcs
         self.complete_summary_writer.add_images(f'Distance Validation Error', error_vs_dist_plot, self.i_epoch, dataformats='NHWC')
         
-        for region_name, region in rel_distance_calculated_errors.items():
+        for region_name, region in self.current_validation_errors["rel_distance_calculated_errors"].items():
             for distance, distance_error in zip(*region):
                 self.complete_summary_writer.add_scalar(f'Distance {region_name} Relative Validation Error/{distance}', np.array(distance_error), self.i_epoch)
                 if region_name=="in" and distance < 10:
                     self.filtered_summary_writer.add_scalar(f'Distance {region_name} Relative Validation Error/{distance}', np.array(distance_error), self.i_epoch)
         
-        rel_error_vs_dist_plot = get_error_vs_distance_plot_image(distance_validation_masks, rel_distance_calculated_errors)   
+        rel_error_vs_dist_plot = get_error_vs_distance_plot_image(distance_validation_masks, self.current_validation_errors["rel_distance_calculated_errors"])   
         self.complete_summary_writer.add_images(f'Relative Distance Validation Error', rel_error_vs_dist_plot, self.i_epoch, dataformats='NHWC')
 
     def add_flow_error_vis_to_tensorboard(self, flows_pred:torch.Tensor, flows_gt:torch.Tensor, two_d_constraints:torch.Tensor=None, **qwargs) -> None: 

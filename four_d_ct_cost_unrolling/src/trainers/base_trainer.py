@@ -26,7 +26,7 @@ class BaseTrainer:
         self.args = args
         self.model = model
         self.optimizer = self._get_optimizer()
-        self.lowest_loss = 1E10
+        self.lowest_metric_measurement = 1E10
         self.i_epoch = self.args.after_epoch+1
         self.i_iter = 0
         self.model_suffix = args.model_suffix
@@ -114,27 +114,27 @@ class BaseTrainer:
 
         return model
 
-    def _save_model(self, loss:float, name:str) -> None:
-        is_best = loss < self.lowest_loss          
-
-        try:
-            models = {'epoch': self.i_epoch, 'state_dict': self.model.module.state_dict()}
-        except:
-            models = {'epoch': self.i_epoch, 'state_dict': self.model.state_dict()}
-        
-        save_checkpoint(os.path.join(self.output_root , "checkpoints"), models, name, is_best)
+    def _save_model(self, metric_measurement:float, name:str, save_iter_freq:int) -> None:
+        is_best = metric_measurement < self.lowest_metric_measurement          
+        if is_best or (self.i_iter % save_iter_freq == 0):
+            try:
+                models = {'epoch': self.i_epoch, 'state_dict': self.model.module.state_dict()}
+            except:
+                models = {'epoch': self.i_epoch, 'state_dict': self.model.state_dict()}
+            save_checkpoint(os.path.join(self.output_root , "checkpoints"), models, name, is_best) 
     
 
     def _decide_on_early_stop(self) -> bool:
-        if self.reduce_loss_delay > self.max_reduce_loss_delay:
+        if self.epochs_of_metric_not_dropping > self.max_metric_not_dropping_patience:
             break_ = True
+            print(f"Early stopping for epochs_of_metric_not_dropping of {self.epochs_of_metric_not_dropping} when max_metric_not_dropping_patience is {self.max_metric_not_dropping_patience}")
         else:
             break_ = False
         return break_
 
-    def _update_loss_dropping(self, avg_loss:float) -> None:
-        if avg_loss < self.lowest_loss:
-            self.lowest_loss = avg_loss
-            self.reduce_loss_delay = 0
+    def _update_metric_dropping(self, metric_measurement:float) -> None:
+        if metric_measurement < self.lowest_metric_measurement:
+            self.lowest_metric_measurement = metric_measurement
+            self.epochs_of_metric_not_dropping = 0
         else:
-            self.reduce_loss_delay += 1
+            self.epochs_of_metric_not_dropping += 1
