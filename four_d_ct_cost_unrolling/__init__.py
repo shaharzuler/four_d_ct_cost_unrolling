@@ -1,6 +1,6 @@
 from .src.main import overfit_backbone, overfit_w_constraints, infer_backbone, infer_w_constraints, overfit_w_seg, infer_w_seg
 from .src.configs.config_readers import get_default_backbone_config, get_default_w_segmentation_config, get_default_w_constraints_config
-from .src.utils.os_utils import get_checkpoints_path
+from .src.utils.os_utils import get_checkpoints_path, get_default_checkpoints_path
 from .src.utils.flow_utils import create_and_save_backward_2d_constraints, rescale_flow_tensor, attach_flow_between_segs, flow_warp
 from .src.utils.torch_utils import rescale_mask_tensor, torch_to_np
 from .src.utils.visualization_utils import write_flow_as_nrrd

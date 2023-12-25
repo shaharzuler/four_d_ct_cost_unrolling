@@ -2,7 +2,7 @@ from easydict import EasyDict
 
 
 from four_d_ct_cost_unrolling import overfit_backbone, infer_backbone, overfit_w_constraints, infer_w_constraints, overfit_w_seg, infer_w_seg
-from four_d_ct_cost_unrolling import get_default_backbone_config, get_default_w_segmentation_config, get_default_w_constraints_config, get_checkpoints_path
+from four_d_ct_cost_unrolling import get_default_backbone_config, get_default_w_segmentation_config, get_default_w_constraints_config, get_checkpoints_path, get_default_checkpoints_path
 
 
 args = get_default_backbone_config()
@@ -15,6 +15,8 @@ args["cuda_device"] = 1
 args["scale_down_by"] = 2
 args["loss"] = "unflow+segmentation"
 args["metric_for_early_stopping"] = "shell_volume_error" 
+
+# args["load"] = get_default_checkpoints_path()
 
 
 backbone_model_output_path = overfit_backbone(

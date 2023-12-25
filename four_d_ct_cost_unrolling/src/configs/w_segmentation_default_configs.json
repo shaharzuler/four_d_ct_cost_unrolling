@@ -20,7 +20,7 @@
     "w_seg_scales": [0.1, 0.1, 0.1, 0.1, 0.1],
     "loss": "unflow+segmentation",
     "plot_freq": 1,
-    "load": "/home/shahar/cardio_corr/my_packages/four_d_ct_cost_unrolling_project/four_d_ct_cost_unrolling/four_d_ct_cost_unrolling/src/checkpoints/4DCT_best_w_admm_ckpt.pth.tar", 
+    "load": "DEFAULT", 
     "lr": 0.0001,
     "output_root": "outputs_segmentation_training",
     "after_epoch":0,
