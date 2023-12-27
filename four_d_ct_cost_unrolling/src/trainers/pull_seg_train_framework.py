@@ -115,6 +115,9 @@ class PullSegmentationMapTrainFramework(TrainFramework):
             flow_arrowed_disp = np.concatenate([flow_arrowed_disp, gt_flow_arrowed_disp], axis=2)
         self.complete_summary_writer.add_images('sample_flows', flow_arrowed_disp, self.i_epoch, dataformats='NCHW')
 
+        self.angular_analysis(data, pred_flow, flow_arrowed_disp, img1, seg, flows_gt)
+
+    def angular_analysis(self, data, pred_flow, flow_arrowed_disp, img1, seg, flows_gt) -> None:
             ################################
         if len(data["flows_gt"].shape) > 1:
 
