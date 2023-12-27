@@ -11,6 +11,9 @@ class SegmentationPullerSampleArgs:
     template_shell_seg_path : str = None
     unlabeled_shell_seg_path : str = None
     flows_gt_path : str = None
+    error_radial_coordinates_path : str = None
+    error_circumferential_coordinates_path : str = None
+    error_longitudinal_coordinates_path : str = None
     num_pixels_validate_outside_seg : int = 0
     num_pixels_validate_inside_seg : int = 0
 
@@ -23,6 +26,9 @@ class SegmentationPullerSample:
     template_shell_seg : np.array = None
     unlabeled_shell_seg : np.array = None
     flows_gt : np.array = None
+    error_radial_coordinates : np.array = None
+    error_circumferential_coordinates : np.array = None
+    error_longitudinal_coordinates : np.array = None
 
 
 @dataclass

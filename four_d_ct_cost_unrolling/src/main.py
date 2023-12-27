@@ -19,13 +19,21 @@ def overfit_backbone(
     template_image_path:str, unlabeled_image_path:str, 
     template_LV_seg_path:str, unlabeled_LV_seg_path:str, 
     template_shell_seg_path:str, unlabeled_shell_seg_path:str, 
-    flows_gt_path:str=None, args:Dict=None) -> str: 
+    flows_gt_path:str=None, 
+    error_radial_coordinates_path:str=None,
+    error_circumferential_coordinates_path:str=None,
+    error_longitudinal_coordinates_path:str=None,
+    args:Dict=None) -> str: 
 
     data_sample_args = SegmentationPullerSampleArgs(
         template_image_path, unlabeled_image_path, 
         template_LV_seg_path, unlabeled_LV_seg_path, 
         template_shell_seg_path, unlabeled_shell_seg_path,
-        flows_gt_path, args.num_pixels_validate_inside_seg, args.num_pixels_validate_outside_seg)
+        flows_gt_path, 
+        error_radial_coordinates_path,
+        error_circumferential_coordinates_path, 
+        error_longitudinal_coordinates_path,
+        args.num_pixels_validate_inside_seg, args.num_pixels_validate_outside_seg)
     train_set = SegmentationPullerCardioDataset(data_sample_args, sample_type=SegmentationPullerSample, scale_down_by=args.scale_down_by)
     model = PWC3D(args)
     loss = get_loss(args)
@@ -54,13 +62,21 @@ def overfit_w_seg(
     template_image_path:str, unlabeled_image_path:str, 
     template_LV_seg_path:str, unlabeled_LV_seg_path:str, 
     template_shell_seg_path:str, unlabeled_shell_seg_path:str, 
-    flows_gt_path:str=None, args:Dict=None) -> str: 
+    flows_gt_path:str=None, 
+    error_radial_coordinates_path:str=None,
+    error_circumferential_coordinates_path:str=None,
+    error_longitudinal_coordinates_path:str=None,
+    args:Dict=None) -> str: 
 
     data_sample_args = SegmentationPullerSampleArgs(
         template_image_path, unlabeled_image_path, 
         template_LV_seg_path, unlabeled_LV_seg_path, 
         template_shell_seg_path, unlabeled_shell_seg_path,
-        flows_gt_path, args.num_pixels_validate_inside_seg, args.num_pixels_validate_outside_seg)
+        flows_gt_path, 
+        error_radial_coordinates_path,
+        error_circumferential_coordinates_path, 
+        error_longitudinal_coordinates_path,
+        args.num_pixels_validate_inside_seg, args.num_pixels_validate_outside_seg)
     train_set = SegmentationPullerCardioDataset(data_sample_args, sample_type=SegmentationPullerSample, scale_down_by=args.scale_down_by)
     model = PWC3D(args)
     loss = get_loss(args)
@@ -89,7 +105,12 @@ def overfit_w_constraints(
     template_image_path:str, unlabeled_image_path:str, 
     template_LV_seg_path:str, unlabeled_LV_seg_path:str, 
     template_shell_seg_path:str, unlabeled_shell_seg_path:str, 
-    two_d_constraints_path:str, flows_gt_path:str=None, args:Dict=None) -> str:
+    two_d_constraints_path:str, 
+    flows_gt_path:str=None, 
+    error_radial_coordinates_path:str=None,
+    error_circumferential_coordinates_path:str=None,
+    error_longitudinal_coordinates_path:str=None,
+    args:Dict=None) -> str:
 
     data_sample_args = SegmentationPullerSampleWithConstraintsArgs(
         template_image_path=template_image_path, 
@@ -99,6 +120,9 @@ def overfit_w_constraints(
         template_shell_seg_path=template_shell_seg_path, 
         unlabeled_shell_seg_path=template_shell_seg_path,
         flows_gt_path=flows_gt_path,
+        error_radial_coordinates_path=error_radial_coordinates_path,
+        error_circumferential_coordinates_path=error_circumferential_coordinates_path, 
+        error_longitudinal_coordinates_path=error_longitudinal_coordinates_path,
         num_pixels_validate_inside_seg=args.num_pixels_validate_inside_seg, 
         num_pixels_validate_outside_seg=args.num_pixels_validate_outside_seg,
         two_d_constraints_path=two_d_constraints_path)

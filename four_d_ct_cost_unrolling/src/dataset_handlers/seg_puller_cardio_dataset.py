@@ -24,10 +24,32 @@ class SegmentationPullerCardioDataset(Dataset):
             })
 
         if dataset_args.flows_gt_path is not None:
-            self.sample.flows_gt = torch.tensor(ndimage.zoom(xyz3_to_3xyz(np.load(dataset_args.flows_gt_path)), (1,1/scale_down_by,1/scale_down_by,1/scale_down_by))) /scale_down_by
-            self.sample.flows_gt = torch.nan_to_num(self.sample.flows_gt) 
+            arr = np.nan_to_num(xyz3_to_3xyz(np.load(dataset_args.flows_gt_path)))
+            self.sample.flows_gt = torch.tensor(ndimage.zoom(arr, (1,1/scale_down_by,1/scale_down_by,1/scale_down_by))) /scale_down_by
         else:
             self.sample.flows_gt = torch.tensor([])
+
+
+        if dataset_args.error_radial_coordinates_path is not None:
+            arr = np.nan_to_num(xyz3_to_3xyz(np.load(dataset_args.error_radial_coordinates_path)))
+            self.sample.error_radial_coordinates = torch.tensor(ndimage.zoom(arr, (1,1/scale_down_by,1/scale_down_by,1/scale_down_by))) /scale_down_by
+        else:
+            self.sample.error_radial_coordinates = torch.tensor([])
+        
+        if dataset_args.error_circumferential_coordinates_path is not None:
+            arr = np.nan_to_num(xyz3_to_3xyz(np.load(dataset_args.error_circumferential_coordinates_path)))
+            self.sample.error_circumferential_coordinates = torch.tensor(ndimage.zoom(arr, (1,1/scale_down_by,1/scale_down_by,1/scale_down_by))) /scale_down_by
+        else:
+            self.sample.error_circumferential_coordinates = torch.tensor([])
+        
+        if dataset_args.error_longitudinal_coordinates_path is not None:
+            arr = np.nan_to_num(xyz3_to_3xyz(np.load(dataset_args.error_longitudinal_coordinates_path)))
+            self.sample.error_longitudinal_coordinates = torch.tensor(ndimage.zoom(arr, (1,1/scale_down_by,1/scale_down_by,1/scale_down_by))) /scale_down_by
+            self.sample.error_longitudinal_coordinates = torch.nan_to_num(self.sample.error_longitudinal_coordinates) 
+        else:
+            self.sample.error_longitudinal_coordinates = torch.tensor([])
+
+
         if normalize:
             min_ = min(self.sample.template_image.min(), self.sample.unlabeled_image.min())
             max_ = max(self.sample.template_image.max(), self.sample.unlabeled_image.max())
@@ -75,7 +97,6 @@ class SegmentationPullerCardioDataset(Dataset):
 class SegmentationPullerCardioDatasetWithConstraints(SegmentationPullerCardioDataset): # this lean version only supports overfit. for the full version go to https://github.com/gallif/_4DCTCostUnrolling
     def __init__(self, dataset_args:SegmentationPullerSampleWithConstraintsArgs, scale_down_by:int=1)-> None:
         super().__init__(dataset_args=dataset_args, sample_type=SegmentationPullerSampleWithConstraints, scale_down_by=scale_down_by) 
-        # two_d_constraints_arr = ndimage.zoom(np.load(dataset_args.two_d_constraints_path), (1/scale_down_by,1/scale_down_by,1/scale_down_by,1),order=0) / scale_down_by# a np arr shape x,y,z,3 with mostly np.Nans and some floats. 
         two_d_constraints_arr = np.load(dataset_args.two_d_constraints_path)[::scale_down_by, ::scale_down_by, ::scale_down_by, :] / scale_down_by# a np arr shape x,y,z,3 with mostly np.Nans and some floats. 
 
         two_d_constraints_raw = attach_flow_between_segs(two_d_constraints_arr.copy(), torch_to_np(self.sample.template_LV_seg).copy())

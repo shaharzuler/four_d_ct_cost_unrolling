@@ -58,11 +58,15 @@ class AverageMeter(object):
 
 
 def calc_epe_error(flows_gt, flows_pred): 
-    flow_diff = flows_gt - flows_pred
-    epe_map = torch.sqrt(torch.sum(torch.square(flow_diff), dim=1))#.mean()
+    epe_map = calc_epe_map(flows_gt, flows_pred)
     # epe_map = torch.abs(flow12 - flow12_net).to(self.device).mean()
     error = float(epe_map.mean().item())
     return error
+
+def calc_epe_map(flows_gt, flows_pred):
+    flow_diff = flows_gt - flows_pred
+    epe_map = torch.sqrt(torch.sum(torch.square(flow_diff), dim=1))#.mean()
+    return epe_map
 
 def calc_error_in_mask(flows_gt, flows_pred, template_seg):
     if template_seg.sum() == 0:
