@@ -9,7 +9,7 @@ from ..utils.flow_utils import rescale_flow_tensor
 
 
 class PWC3Dw2dConstraints(PWC3D):
-    def __init__(self, args:Dict, two_d_constraints:np.ndarray, upsample:bool=True, search_range:int=4, freeze_backbone:bool=True):
+    def __init__(self, args:Dict, two_d_constraints:np.ndarray, upsample:bool=True, search_range:int=4, freeze_backbone:bool=False):
         super().__init__(args, upsample, search_range)
         if freeze_backbone:
             self.freeze_all_weights()
@@ -43,6 +43,7 @@ class TwoDConstraintsNetwork(nn.Module):
        
 
     def forward(self, flows:Tuple[List[torch.Tensor],Dict[str,List]]) -> Tuple[List[torch.Tensor],Dict[str,List]]:
+        return flows #TODO remove this from nn archi
         if self.device_ is None:
             self.device_ = flows[0][0].device # assuming all flow pyramid levels are on the same device
             self.two_d_constraints = self.two_d_constraints.to(self.device_) 
