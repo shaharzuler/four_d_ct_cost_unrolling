@@ -27,7 +27,7 @@
     "model_suffix": "4dct_costunrolling",
     "epochs": 5000, 
     "metric_for_early_stopping": "avg_loss",
-    "max_metric_not_dropping_patience": 100,
+    "max_metric_not_dropping_patience": 500,
     "n_gpu": 1,
     "batch_size": 1,
     "w_sm_scales":[20,0,0,0,0],
