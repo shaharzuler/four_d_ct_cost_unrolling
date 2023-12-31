@@ -57,11 +57,11 @@ class AverageMeter(object):
         return '{} ({})'.format(val, avg)
 
 
-def calc_epe_error(flows_gt, flows_pred): 
+def calc_epe(flows_gt, flows_pred): 
     epe_map = calc_epe_map(flows_gt, flows_pred)
     # epe_map = torch.abs(flow12 - flow12_net).to(self.device).mean()
     error = float(epe_map.mean().item())
-    return error
+    return error, epe_map
 
 def calc_epe_map(flows_gt, flows_pred):
     flow_diff = flows_gt - flows_pred
@@ -73,15 +73,32 @@ def calc_error_in_mask(flows_gt, flows_pred, template_seg):
         return 0.0
     template_seg = mask_xyz_to_13xyz(template_seg).to(flows_gt.device)
     normalization_term = torch.numel(template_seg[0,0]) / template_seg[0,0].nonzero().shape[0]
-    error = (calc_epe_error(flows_gt * template_seg, flows_pred * template_seg)) * normalization_term 
-    return error
+    error, error_map = (calc_epe(flows_gt * template_seg, flows_pred * template_seg)) 
+    error *= normalization_term
+    return error, error_map
 
 def calc_error_on_surface(flows_gt, flows_pred, template_seg):
     surface_mask = torch.tensor(three_d_data_manager.extract_segmentation_envelope(torch_to_np(template_seg)))
     surface_mask = mask_xyz_to_13xyz(surface_mask).to(flows_gt.device)
     normalization_term = torch.numel(surface_mask[0,0]) / surface_mask[0,0].nonzero().shape[0]
-    error = (calc_epe_error(flows_gt * surface_mask, flows_pred * surface_mask)) * normalization_term 
+    error, _ = (calc_epe(flows_gt * surface_mask, flows_pred * surface_mask))
+    error *=  normalization_term 
     return error
+
+def calc_measurement_components_on_surface(measurement, surface_mask, surface_normalization_term, voxelized_normals, measurement_locally_radial_denum=None, measurement_locally_tangential_denum=None):
+    measurement_locally_radial_size = (measurement * voxelized_normals).sum(1)
+    measurement_locally_radial_vectors = measurement_locally_radial_size * voxelized_normals * surface_mask
+    if measurement_locally_radial_denum is not None:
+        measurement_locally_radial_vectors /= measurement_locally_radial_denum
+    measurement_locally_tangential_vectors = (measurement - measurement_locally_radial_vectors) * surface_mask
+    if measurement_locally_tangential_denum is not None:
+        measurement_locally_tangential_vectors /= measurement_locally_tangential_denum
+    measurement_locally_tangential_size = torch.nansum(measurement_locally_tangential_vectors,axis=1)
+    
+    mean_locally_radial_measurement = abs(float(measurement_locally_radial_size.mean().item()) * surface_normalization_term)
+    mean_locally_tangential_measurement = abs(float(measurement_locally_tangential_size.mean().item()) * surface_normalization_term)
+    
+    return mean_locally_radial_measurement, mean_locally_tangential_measurement, measurement_locally_radial_vectors, measurement_locally_tangential_vectors
 
 def calc_error_vs_distance(flows_pred, flows_gt, distance_validation_masks):
     distance_calculated_errors = {}
@@ -90,8 +107,8 @@ def calc_error_vs_distance(flows_pred, flows_gt, distance_validation_masks):
         distance_calculated_errors[region_name] = [[],[]]
         rel_distance_calculated_errors[region_name] = [[],[]]
         for distance, distance_mask in region.items():
-            distance_error = calc_error_in_mask(flows_gt, flows_pred, distance_mask)
-            denum_error = calc_error_in_mask(flows_gt, torch.zeros_like(flows_pred), distance_mask)
+            distance_error, error_map = calc_error_in_mask(flows_gt, flows_pred, distance_mask)
+            denum_error, gt_map = calc_error_in_mask(flows_gt, torch.zeros_like(flows_pred), distance_mask)
             distance_calculated_errors[region_name][0].append(distance)
             distance_calculated_errors[region_name][1].append(distance_error)
             rel_distance_calculated_errors[region_name][0].append(distance)

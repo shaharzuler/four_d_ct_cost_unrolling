@@ -23,6 +23,7 @@ def overfit_backbone(
     error_radial_coordinates_path:str=None,
     error_circumferential_coordinates_path:str=None,
     error_longitudinal_coordinates_path:str=None,
+    voxelized_normals_path:str=None,
     args:Dict=None) -> str: 
 
     data_sample_args = SegmentationPullerSampleArgs(
@@ -33,6 +34,7 @@ def overfit_backbone(
         error_radial_coordinates_path,
         error_circumferential_coordinates_path, 
         error_longitudinal_coordinates_path,
+        voxelized_normals_path,
         args.num_pixels_validate_inside_seg, args.num_pixels_validate_outside_seg)
     train_set = SegmentationPullerCardioDataset(data_sample_args, sample_type=SegmentationPullerSample, scale_down_by=args.scale_down_by)
     model = PWC3D(args)
@@ -66,6 +68,7 @@ def overfit_w_seg(
     error_radial_coordinates_path:str=None,
     error_circumferential_coordinates_path:str=None,
     error_longitudinal_coordinates_path:str=None,
+    voxelized_normals_path:str=None,
     args:Dict=None) -> str: 
 
     data_sample_args = SegmentationPullerSampleArgs(
@@ -76,6 +79,7 @@ def overfit_w_seg(
         error_radial_coordinates_path,
         error_circumferential_coordinates_path, 
         error_longitudinal_coordinates_path,
+        voxelized_normals_path,
         args.num_pixels_validate_inside_seg, args.num_pixels_validate_outside_seg)
     train_set = SegmentationPullerCardioDataset(data_sample_args, sample_type=SegmentationPullerSample, scale_down_by=args.scale_down_by)
     model = PWC3D(args)
@@ -110,6 +114,7 @@ def overfit_w_constraints(
     error_radial_coordinates_path:str=None,
     error_circumferential_coordinates_path:str=None,
     error_longitudinal_coordinates_path:str=None,
+    voxelized_normals_path:str=None,
     args:Dict=None) -> str:
 
     data_sample_args = SegmentationPullerSampleWithConstraintsArgs(
@@ -123,6 +128,7 @@ def overfit_w_constraints(
         error_radial_coordinates_path=error_radial_coordinates_path,
         error_circumferential_coordinates_path=error_circumferential_coordinates_path, 
         error_longitudinal_coordinates_path=error_longitudinal_coordinates_path,
+        voxelized_normals_path=voxelized_normals_path,
         num_pixels_validate_inside_seg=args.num_pixels_validate_inside_seg, 
         num_pixels_validate_outside_seg=args.num_pixels_validate_outside_seg,
         two_d_constraints_path=two_d_constraints_path)

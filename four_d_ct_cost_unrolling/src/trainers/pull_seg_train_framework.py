@@ -85,6 +85,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
                 "error_radial_coordinates":          data["error_radial_coordinates"],
                 "error_circumferential_coordinates": data["error_circumferential_coordinates"],
                 "error_longitudinal_coordinates":    data["error_longitudinal_coordinates"],
+                "voxelized_normals":                 data["voxelized_normals"],
                 }
             }
         if "template_LV_seg" in data.keys():

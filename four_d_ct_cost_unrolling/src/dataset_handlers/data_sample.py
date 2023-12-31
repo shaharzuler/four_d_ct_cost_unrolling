@@ -14,6 +14,7 @@ class SegmentationPullerSampleArgs:
     error_radial_coordinates_path : str = None
     error_circumferential_coordinates_path : str = None
     error_longitudinal_coordinates_path : str = None
+    voxelized_normals_path : str = None
     num_pixels_validate_outside_seg : int = 0
     num_pixels_validate_inside_seg : int = 0
 
@@ -29,7 +30,7 @@ class SegmentationPullerSample:
     error_radial_coordinates : np.array = None
     error_circumferential_coordinates : np.array = None
     error_longitudinal_coordinates : np.array = None
-
+    voxelized_normals : np.array = None
 
 @dataclass
 class SegmentationPullerSampleWithConstraintsArgs(SegmentationPullerSampleArgs):

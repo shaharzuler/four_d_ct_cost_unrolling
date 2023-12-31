@@ -29,25 +29,30 @@ class SegmentationPullerCardioDataset(Dataset):
         else:
             self.sample.flows_gt = torch.tensor([])
 
-
         if dataset_args.error_radial_coordinates_path is not None:
             arr = np.nan_to_num(xyz3_to_3xyz(np.load(dataset_args.error_radial_coordinates_path)))
-            self.sample.error_radial_coordinates = torch.tensor(ndimage.zoom(arr, (1,1/scale_down_by,1/scale_down_by,1/scale_down_by))) /scale_down_by
+            self.sample.error_radial_coordinates = torch.tensor(ndimage.zoom(arr, (1,1/scale_down_by,1/scale_down_by,1/scale_down_by))) 
         else:
             self.sample.error_radial_coordinates = torch.tensor([])
         
         if dataset_args.error_circumferential_coordinates_path is not None:
             arr = np.nan_to_num(xyz3_to_3xyz(np.load(dataset_args.error_circumferential_coordinates_path)))
-            self.sample.error_circumferential_coordinates = torch.tensor(ndimage.zoom(arr, (1,1/scale_down_by,1/scale_down_by,1/scale_down_by))) /scale_down_by
+            self.sample.error_circumferential_coordinates = torch.tensor(ndimage.zoom(arr, (1,1/scale_down_by,1/scale_down_by,1/scale_down_by))) 
         else:
             self.sample.error_circumferential_coordinates = torch.tensor([])
         
         if dataset_args.error_longitudinal_coordinates_path is not None:
             arr = np.nan_to_num(xyz3_to_3xyz(np.load(dataset_args.error_longitudinal_coordinates_path)))
-            self.sample.error_longitudinal_coordinates = torch.tensor(ndimage.zoom(arr, (1,1/scale_down_by,1/scale_down_by,1/scale_down_by))) /scale_down_by
+            self.sample.error_longitudinal_coordinates = torch.tensor(ndimage.zoom(arr, (1,1/scale_down_by,1/scale_down_by,1/scale_down_by)))
             self.sample.error_longitudinal_coordinates = torch.nan_to_num(self.sample.error_longitudinal_coordinates) 
         else:
             self.sample.error_longitudinal_coordinates = torch.tensor([])
+
+        if dataset_args.voxelized_normals_path is not None:
+            arr = np.nan_to_num(xyz3_to_3xyz(np.load(dataset_args.voxelized_normals_path)))
+            self.sample.voxelized_normals = torch.tensor(ndimage.zoom(arr, (1,1/scale_down_by,1/scale_down_by,1/scale_down_by))) 
+        else:
+            self.sample.voxelized_normals_path = torch.tensor([])
 
 
         if normalize:

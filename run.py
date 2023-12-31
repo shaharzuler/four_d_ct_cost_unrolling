@@ -7,7 +7,7 @@ from four_d_ct_cost_unrolling import get_default_backbone_config, get_default_w_
 
 args = get_default_backbone_config()
 args["inference_args"]["inference_flow_median_filter_size"] = False
-args["epochs"] = 20
+args["epochs"] = 200
 args["valid_type"] = "basic+synthetic"
 args["w_sm_scales"] = [0,0,0,0,0]
 args["visualization_arrow_scale_factor"] = 1
@@ -30,6 +30,7 @@ backbone_model_output_path = overfit_backbone(
     error_radial_coordinates_path="/home/shahar/cardio_corr/outputs/magix/miccai_experiments/tot_torsion_50_torsion_version_3/dataset_tot_torsion_50_torsion_version_3/thetas_37.5_-12.5_rs_0.9_0.9_h_0.91_linear_mask_True_blur_radious_1/error_radial_coordinates_thetas_37.5_-12.5_rs_0.9_0.9_h_0.91_linear_mask_True_blur_radious_1.npy",
     error_circumferential_coordinates_path="/home/shahar/cardio_corr/outputs/magix/miccai_experiments/tot_torsion_50_torsion_version_3/dataset_tot_torsion_50_torsion_version_3/thetas_37.5_-12.5_rs_0.9_0.9_h_0.91_linear_mask_True_blur_radious_1/error_circumferential_coordinates_thetas_37.5_-12.5_rs_0.9_0.9_h_0.91_linear_mask_True_blur_radious_1.npy",
     error_longitudinal_coordinates_path="/home/shahar/cardio_corr/outputs/magix/miccai_experiments/tot_torsion_50_torsion_version_3/dataset_tot_torsion_50_torsion_version_3/thetas_37.5_-12.5_rs_0.9_0.9_h_0.91_linear_mask_True_blur_radious_1/error_longitudinal_coordinates_thetas_37.5_-12.5_rs_0.9_0.9_h_0.91_linear_mask_True_blur_radious_1.npy",
+    voxelized_normals_path="/home/shahar/cardio_corr/outputs/magix/miccai_experiments/tot_torsion_50_torsion_version_3/outputs_20231230_113826/normals.npy",
     args=EasyDict(args)
     )
 
@@ -71,6 +72,7 @@ args["metric_for_early_stopping"] = "shell_volume_error"
 #     error_radial_coordinates_path         ="/home/shahar/cardio_corr/outputs/magix/miccai_experiments/tot_torsion_50_torsion_version_3/dataset_tot_torsion_50_torsion_version_3/thetas_37.5_-12.5_rs_0.9_0.9_h_0.91_linear_mask_True_blur_radious_1/error_radial_coordinates_thetas_37.5_-12.5_rs_0.9_0.9_h_0.91_linear_mask_True_blur_radious_1.npy",
 #     error_circumferential_coordinates_path="/home/shahar/cardio_corr/outputs/magix/miccai_experiments/tot_torsion_50_torsion_version_3/dataset_tot_torsion_50_torsion_version_3/thetas_37.5_-12.5_rs_0.9_0.9_h_0.91_linear_mask_True_blur_radious_1/error_circumferential_coordinates_thetas_37.5_-12.5_rs_0.9_0.9_h_0.91_linear_mask_True_blur_radious_1.npy",
 #     error_longitudinal_coordinates_path   ="/home/shahar/cardio_corr/outputs/magix/miccai_experiments/tot_torsion_50_torsion_version_3/dataset_tot_torsion_50_torsion_version_3/thetas_37.5_-12.5_rs_0.9_0.9_h_0.91_linear_mask_True_blur_radious_1/error_longitudinal_coordinates_thetas_37.5_-12.5_rs_0.9_0.9_h_0.91_linear_mask_True_blur_radious_1.npy",
+#     voxelized_normals_path="/home/shahar/cardio_corr/outputs/magix/miccai_experiments/tot_torsion_50_torsion_version_3/outputs_20231230_113826/normals.npy",
 #     args=EasyDict(args)
 #     )
 
@@ -111,6 +113,7 @@ constraints_model_output_path = overfit_w_constraints(
     error_radial_coordinates_path="/home/shahar/cardio_corr/outputs/magix/miccai_experiments/tot_torsion_50_torsion_version_3/dataset_tot_torsion_50_torsion_version_3/thetas_37.5_-12.5_rs_0.9_0.9_h_0.91_linear_mask_True_blur_radious_1/error_radial_coordinates_thetas_37.5_-12.5_rs_0.9_0.9_h_0.91_linear_mask_True_blur_radious_1.npy",
     error_circumferential_coordinates_path="/home/shahar/cardio_corr/outputs/magix/miccai_experiments/tot_torsion_50_torsion_version_3/dataset_tot_torsion_50_torsion_version_3/thetas_37.5_-12.5_rs_0.9_0.9_h_0.91_linear_mask_True_blur_radious_1/error_circumferential_coordinates_thetas_37.5_-12.5_rs_0.9_0.9_h_0.91_linear_mask_True_blur_radious_1.npy",
     error_longitudinal_coordinates_path="/home/shahar/cardio_corr/outputs/magix/miccai_experiments/tot_torsion_50_torsion_version_3/dataset_tot_torsion_50_torsion_version_3/thetas_37.5_-12.5_rs_0.9_0.9_h_0.91_linear_mask_True_blur_radious_1/error_longitudinal_coordinates_thetas_37.5_-12.5_rs_0.9_0.9_h_0.91_linear_mask_True_blur_radious_1.npy",
+    voxelized_normals_path="/home/shahar/cardio_corr/outputs/magix/miccai_experiments/tot_torsion_50_torsion_version_3/outputs_20231230_113826/normals.npy",
     args=EasyDict(args)
     )
 
