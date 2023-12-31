@@ -116,53 +116,87 @@ class PullSegmentationMapTrainFramework(TrainFramework):
             flow_arrowed_disp = np.concatenate([flow_arrowed_disp, gt_flow_arrowed_disp], axis=2)
         self.complete_summary_writer.add_images('sample_flows', flow_arrowed_disp, self.i_epoch, dataformats='NCHW')
 
-        self.angular_analysis(data, pred_flow, flow_arrowed_disp, img1, seg, flows_gt)
+        self.volume_angular_analysis(data, pred_flow, flow_arrowed_disp, img1, seg, flows_gt)
+        self.surface_angular_analysis(data, pred_flow, flow_arrowed_disp, img1, seg, flows_gt)
 
-    def angular_analysis(self, data, pred_flow, flow_arrowed_disp, img1, seg, flows_gt) -> None:
-            ################################
+    def surface_angular_analysis(self, data, pred_flow, flow_arrowed_disp, img1, seg, flows_gt) -> None:
+        if len(data["flows_gt"].shape) > 1:
+            flow_arrowed_disp = flow_arrowed_disp[:,:,:2,:]
+            
+            locally_radial_flow = ((data['voxelized_normals'][0] * pred_flow).sum(0))*data['voxelized_normals'][0]
+            locally_radial_flow_component_arrowed_disp  = disp_flow_as_arrows(img1, seg, locally_radial_flow, text="loc_rad_flow_component",  arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
+            flow_arrowed_disp = np.concatenate([flow_arrowed_disp, locally_radial_flow_component_arrowed_disp], axis=2)
+            locally_radial_error = ((data['voxelized_normals'][0] * (flows_gt-pred_flow)).sum(0))*data['voxelized_normals'][0]
+            locally_radial_error_component_arrowed_disp = disp_flow_as_arrows(img1, seg, locally_radial_error, text="loc_rad_error_component", arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
+            flow_arrowed_disp = np.concatenate([flow_arrowed_disp, locally_radial_error_component_arrowed_disp], axis=2)
+            locally_radial_gt = ((data['voxelized_normals'][0] * flows_gt).sum(0))*data['voxelized_normals'][0]
+            locally_radial_gt_component_arrowed_disp    = disp_flow_as_arrows(img1, seg, locally_radial_gt,  text="loc_rad_gt_component",  arrow_scale_factor=self.args.visualization_arrow_scale_factor)
+            flow_arrowed_disp = np.concatenate([flow_arrowed_disp, locally_radial_gt_component_arrowed_disp],  axis=2)
+            locally_radial_base_arrowed_disp            = disp_flow_as_arrows(img1, seg, data['voxelized_normals'][0], text="loc_rad_coordinates",   arrow_scale_factor=40*self.args.visualization_arrow_scale_factor)
+            flow_arrowed_disp = np.concatenate([flow_arrowed_disp, locally_radial_base_arrowed_disp],   axis=2)
+            self.complete_summary_writer.add_images('locally_radial_analysis', flow_arrowed_disp, self.i_epoch, dataformats='NCHW')
+
+            flow_arrowed_disp = flow_arrowed_disp[:,:,:2,:]
+
+            locally_tangential_flow = pred_flow - locally_radial_flow.cpu().numpy()
+            locally_tangential_flow_component_arrowed_disp  = disp_flow_as_arrows(img1, seg, locally_tangential_flow, text="loc_tan_flow_component",  arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
+            flow_arrowed_disp = np.concatenate([flow_arrowed_disp, locally_tangential_flow_component_arrowed_disp], axis=2)
+            
+            locally_tangential_error = (flows_gt - pred_flow) - locally_radial_error.cpu().numpy()
+            locally_tangential_error_component_arrowed_disp  = disp_flow_as_arrows(img1, seg, locally_tangential_error, text="loc_tan_error_component",  arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
+            flow_arrowed_disp = np.concatenate([flow_arrowed_disp, locally_tangential_error_component_arrowed_disp], axis=2)
+            
+            locally_tangential_gt = flows_gt - locally_radial_gt.cpu().numpy()
+            locally_tangential_gt_component_arrowed_disp  = disp_flow_as_arrows(img1, seg, locally_tangential_gt, text="loc_tan_gt_component",  arrow_scale_factor=self.args.visualization_arrow_scale_factor)
+            flow_arrowed_disp = np.concatenate([flow_arrowed_disp, locally_tangential_gt_component_arrowed_disp], axis=2)
+            
+            self.complete_summary_writer.add_images('locally_tangential_analysis', flow_arrowed_disp, self.i_epoch, dataformats='NCHW')
+
+
+
+
+    def volume_angular_analysis(self, data, pred_flow, flow_arrowed_disp, img1, seg, flows_gt) -> None:
         if len(data["flows_gt"].shape) > 1:
 
             flow_arrowed_disp = flow_arrowed_disp[:,:,:2,:]
 
-            radial_flow_component_arrowed_disp = disp_flow_as_arrows(img1, seg, data['error_radial_coordinates'][0] * pred_flow,              text="rad_flow_component",  arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
+            radial_flow_component_arrowed_disp = disp_flow_as_arrows(img1, seg, ((data['error_radial_coordinates'][0] * pred_flow).sum(0))*data['error_radial_coordinates'][0],              text="rad_flow_component",  arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
             flow_arrowed_disp = np.concatenate([flow_arrowed_disp, radial_flow_component_arrowed_disp], axis=2)
-            radial_error_component_arrowed_disp = disp_flow_as_arrows(img1, seg, data['error_radial_coordinates'][0] * (flows_gt-pred_flow), text="rad_error_component", arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
+            radial_error_component_arrowed_disp = disp_flow_as_arrows(img1, seg, ((data['error_radial_coordinates'][0] * (flows_gt-pred_flow)).sum(0))*data['error_radial_coordinates'][0], text="rad_error_component", arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
             flow_arrowed_disp = np.concatenate([flow_arrowed_disp, radial_error_component_arrowed_disp], axis=2)
-            radial_gt_component_arrowed_disp    = disp_flow_as_arrows(img1, seg, data['error_radial_coordinates'][0] * flows_gt,             text="rad_gt_component",    arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
+            radial_gt_component_arrowed_disp    = disp_flow_as_arrows(img1, seg, ((data['error_radial_coordinates'][0] * flows_gt).sum(0))*data['error_radial_coordinates'][0],             text="rad_gt_component",    arrow_scale_factor=self.args.visualization_arrow_scale_factor)
             flow_arrowed_disp = np.concatenate([flow_arrowed_disp, radial_gt_component_arrowed_disp],    axis=2)
-            radial_base_arrowed_disp            = disp_flow_as_arrows(img1, seg, data['error_radial_coordinates'][0],                        text="rad_coordinates",     arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
+            radial_base_arrowed_disp            = disp_flow_as_arrows(img1, seg, data['error_radial_coordinates'][0],    text="rad_coordinates",   arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
             flow_arrowed_disp = np.concatenate([flow_arrowed_disp, radial_base_arrowed_disp],            axis=2)
             
             self.complete_summary_writer.add_images('angular_radial_analysis', flow_arrowed_disp, self.i_epoch, dataformats='NCHW')
 
             flow_arrowed_disp = flow_arrowed_disp[:,:,:2,:]
             
-            longitudinal_flow_component_arrowed_disp  = disp_flow_as_arrows(img1, seg, data['error_longitudinal_coordinates'][0]   * pred_flow,          text="longi_flow_component",  arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
+            longitudinal_flow_component_arrowed_disp  = disp_flow_as_arrows(img1, seg, ((data['error_longitudinal_coordinates'][0] * pred_flow).sum(0))*data['error_longitudinal_coordinates'][0],          text="longi_flow_component",  arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
             flow_arrowed_disp = np.concatenate([flow_arrowed_disp, longitudinal_flow_component_arrowed_disp], axis=2)
-            longitudinal_error_component_arrowed_disp = disp_flow_as_arrows(img1, seg, data['error_longitudinal_coordinates'][0] * (flows_gt-pred_flow), text="longi_error_component", arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
+            longitudinal_error_component_arrowed_disp = disp_flow_as_arrows(img1, seg, ((data['error_longitudinal_coordinates'][0] * (flows_gt-pred_flow)).sum(0))*data['error_longitudinal_coordinates'][0], text="longi_error_component", arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
             flow_arrowed_disp = np.concatenate([flow_arrowed_disp, longitudinal_error_component_arrowed_disp], axis=2) 
-            longitudinal_gt_component_arrowed_disp    = disp_flow_as_arrows(img1, seg, data['error_longitudinal_coordinates'][0] * flows_gt,             text="longi_gt_component",    arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
+            longitudinal_gt_component_arrowed_disp    = disp_flow_as_arrows(img1, seg, ((data['error_longitudinal_coordinates'][0] * flows_gt).sum(0))*data['error_longitudinal_coordinates'][0],             text="longi_gt_component",    arrow_scale_factor=self.args.visualization_arrow_scale_factor)
             flow_arrowed_disp = np.concatenate([flow_arrowed_disp, longitudinal_gt_component_arrowed_disp],    axis=2)
-            longitudinal_base_arrowed_disp            = disp_flow_as_arrows(img1, seg, data['error_longitudinal_coordinates'][0],                        text="longi_coordinates",     arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
-            flow_arrowed_disp = np.concatenate([flow_arrowed_disp, longitudinal_base_arrowed_disp],            axis=2)
+            longitudinal_base_arrowed_disp            = disp_flow_as_arrows(img1, seg, data['error_longitudinal_coordinates'][0],    text="longi_coordinates",  arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
+            flow_arrowed_disp = np.concatenate([flow_arrowed_disp, longitudinal_base_arrowed_disp],    axis=2)
             
             self.complete_summary_writer.add_images('angular_longitudinal_analysis', flow_arrowed_disp, self.i_epoch, dataformats='NCHW')
             
             flow_arrowed_disp = flow_arrowed_disp[:,:,:2,:]     
 
-            circumferential_flow_component_arrowed_disp  = disp_flow_as_arrows(img1, seg, data['error_circumferential_coordinates'][0]  * pred_flow,           text="circu_flow_component",  arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
+            circumferential_flow_component_arrowed_disp  = disp_flow_as_arrows(img1, seg, ((data['error_circumferential_coordinates'][0]  * pred_flow).sum(0))*data['error_circumferential_coordinates'][0],           text="circu_flow_component",  arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
             flow_arrowed_disp = np.concatenate([flow_arrowed_disp, circumferential_flow_component_arrowed_disp], axis=2)
-            circumferential_error_component_arrowed_disp = disp_flow_as_arrows(img1, seg, data['error_circumferential_coordinates'][0] * (flows_gt-pred_flow), text="circu_error_component", arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
+            circumferential_error_component_arrowed_disp = disp_flow_as_arrows(img1, seg,( (data['error_circumferential_coordinates'][0] * (flows_gt-pred_flow)).sum(0))*data['error_circumferential_coordinates'][0], text="circu_error_component", arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
             flow_arrowed_disp = np.concatenate([flow_arrowed_disp, circumferential_error_component_arrowed_disp], axis=2)
-            circumferential_gt_component_arrowed_disp    = disp_flow_as_arrows(img1, seg, data['error_circumferential_coordinates'][0] * flows_gt,             text="circu_gt_component",    arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
+            circumferential_gt_component_arrowed_disp    = disp_flow_as_arrows(img1, seg, ((data['error_circumferential_coordinates'][0] * flows_gt).sum(0))*data['error_circumferential_coordinates'][0],             text="circu_gt_component",    arrow_scale_factor=self.args.visualization_arrow_scale_factor)
             flow_arrowed_disp = np.concatenate([flow_arrowed_disp, circumferential_gt_component_arrowed_disp], axis=2)
-            circumferential_base_arrowed_disp            = disp_flow_as_arrows(img1, seg, data['error_circumferential_coordinates'][0],                        text="circu_coordinates",     arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
+            circumferential_base_arrowed_disp            = disp_flow_as_arrows(img1, seg, data['error_circumferential_coordinates'][0],   text="circu_coordinates",     arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
             flow_arrowed_disp = np.concatenate([flow_arrowed_disp, circumferential_base_arrowed_disp], axis=2)
             
             self.complete_summary_writer.add_images('angular_circumferential_analysis', flow_arrowed_disp, self.i_epoch, dataformats='NCHW')
-            #################################
-
-        
+      
 
     def _add_warped_seg_mask_to_tensorboard(self, data:Dict, pred_flow:torch.Tensor, img1_recons_disp:np.ndarray, mask_name:str) -> np.ndarray:
         unlabeled_seg_map = data[mask_name]
