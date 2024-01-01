@@ -50,7 +50,7 @@ class SegmentationPullerCardioDataset(Dataset):
 
         if dataset_args.voxelized_normals_path is not None:
             arr = np.nan_to_num(xyz3_to_3xyz(np.load(dataset_args.voxelized_normals_path)))
-            self.sample.voxelized_normals = torch.tensor(ndimage.zoom(arr, (1,1/scale_down_by,1/scale_down_by,1/scale_down_by))) 
+            self.sample.voxelized_normals = torch.tensor(arr[:,::scale_down_by, ::scale_down_by, ::scale_down_by])
         else:
             self.sample.voxelized_normals_path = torch.tensor([])
 

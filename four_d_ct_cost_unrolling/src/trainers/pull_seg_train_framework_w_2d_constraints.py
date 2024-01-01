@@ -54,8 +54,8 @@ class PullSegmentationMapTrainFrameworkWith2dConstraints(PullSegmentationMapTrai
             all_flow_arrowed_disp = np.concatenate([all_flow_arrowed_disp, gt_flow_arrowed_disp], axis=2)
         
         self.complete_summary_writer.add_images('sample_flows', all_flow_arrowed_disp, self.i_epoch, dataformats='NCHW')
-        self.volume_angular_analysis(data, pred_flow, all_flow_arrowed_disp, img1, seg, flows_gt)
-        self.surface_angular_analysis(data, pred_flow, all_flow_arrowed_disp, img1, seg, flows_gt)
+        self._volume_angular_analysis( data, all_flow_arrowed_disp, img1, seg)
+        self._surface_angular_analysis(data, all_flow_arrowed_disp, img1, seg)
 
 
     def _create_validation_data(self, avg_loss, flows, data):

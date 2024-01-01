@@ -15,6 +15,8 @@ from ..utils.flow_utils import flow_warp
 from ..utils.metrics_utils import AverageMeter, calc_epe, calc_error_in_mask, calc_error_on_surface, calc_error_vs_distance, get_error_vs_distance_plot_image
 from ..utils.torch_utils import mask_xyz_to_13xyz, torch_to_np
 from four_d_ct_cost_unrolling.src.utils import metrics_utils
+import three_d_data_manager
+
 
 
 
@@ -130,102 +132,105 @@ class TrainFramework(BaseTrainer):
                     processed_validation_data["distance_validation_masks"][region_name][distance] = distance_mask[0]
 
         return processed_validation_data
+
+    def _add_scalar_to_both_writers(self, text, value):
+        self.complete_summary_writer.add_scalar(text, value, self.i_epoch)
+        self.filtered_summary_writer.add_scalar(text, value, self.i_epoch)
+
+    def calc_3d_field_size(self, measurement, mask=None, relative_field=None, surface=False):  # TODO utils 
+            vec_size_map = torch.sqrt(torch.sum(torch.square(measurement), dim=1))
+
+            mask = self.handle_mask(mask, vec_size_map, measurement.device, surface)
+
+            num_nonzero_elements = torch.nonzero(torch.ones_like(vec_size_map)).shape[0]
+            if relative_field is not None:
+                relative_field_size_map = torch.sqrt(torch.sum(torch.square(relative_field), dim=1)) #TODO handle cases of rel equals zero
+                vec_size_map /= relative_field_size_map
+
+            vec_size_map *= mask
+            mean_measurement = float((torch.nansum(vec_size_map)/num_nonzero_elements).item()) if num_nonzero_elements != 0 else 0.
+            return mean_measurement
+
+    def handle_mask(self, mask, vec_size_map, device, surface):
+        if mask is None:
+            mask = torch.ones_like(vec_size_map[0])
+        if surface:
+            mask = torch.tensor(three_d_data_manager.extract_segmentation_envelope(torch_to_np(mask)))
+            mask = torch.unsqueeze(mask, 0)
+        return mask.to(device)
+
+    @staticmethod
+    def torch_nd_dot(A, B, axis): # TODO utils 
+        mult = A*B
+        return torch.sum(mult,axis=axis)
+
+    def calc_measurement_projected_normals_and_radial_components(self, measurement, voxelized_normals): # TODO utils 
+        mask = torch.zeros_like(voxelized_normals[0,0])
+        mask[torch.where(voxelized_normals[0,0]!=0)]=1
+        mask = torch.unsqueeze(mask,0)
+        mask = torch.unsqueeze(mask,0)
+        locally_radial_measurement_vectors = self.proj_measurement_over_coordinates(measurement, voxelized_normals)*mask
+        locally_tangential_measurement_vectors = (measurement - locally_radial_measurement_vectors)*mask
+        return locally_radial_measurement_vectors, locally_tangential_measurement_vectors
+
+    def proj_measurement_over_coordinates(self, measurement, coordinates): # TODO utils 
+        proj_measurement_size = self.torch_nd_dot(measurement, coordinates, 1)
+        proj_measurement_vectors = proj_measurement_size * coordinates
+        return proj_measurement_vectors
+
+    def volume_angular_numerical_analysis(self, direction_name, flows_diff, flows_pred, flows_gt, coordinates, mask, mask_name):
+        self.current_validation_errors[f"globally_{direction_name}_flows_diff_vectors"] = self.proj_measurement_over_coordinates(flows_diff, coordinates)
+        self.current_validation_errors[f"globally_{direction_name}_flows_pred_vectors"] = self.proj_measurement_over_coordinates(flows_pred, coordinates)
+        self.current_validation_errors[f"globally_{direction_name}_flows_gt_vectors"] = self.proj_measurement_over_coordinates(flows_gt, coordinates)
+        self.current_validation_errors[f"{mask_name}_error_globally_{direction_name}"] = self.calc_3d_field_size(self.current_validation_errors[f"globally_{direction_name}_flows_diff_vectors"], mask=mask, relative_field=None, surface=False)
+        self.current_validation_errors[f"{mask_name}_rel_error_globally_{direction_name}"] = self.calc_3d_field_size(self.current_validation_errors[f"globally_{direction_name}_flows_diff_vectors"], mask=mask, relative_field=self.current_validation_errors[f"globally_{direction_name}_flows_gt_vectors"], surface=False)
+        self.current_validation_errors[f"{mask_name}_flow_pred_globally_{direction_name}"] = self.calc_3d_field_size(self.current_validation_errors[f"globally_{direction_name}_flows_pred_vectors"], mask=mask, relative_field=None, surface=False)
+
+    def local_surface_analysis(self, name, mask):
+        self.current_validation_errors[f"surface_error_locally_{name}"] = self.calc_3d_field_size(self.current_validation_errors[f"locally_{name}_flow_diff_vectors"], mask=mask, relative_field=None, surface=True)
+        self.current_validation_errors[f"rel_surface_error_locally_{name}"] = self.calc_3d_field_size(self.current_validation_errors[f"locally_{name}_flow_diff_vectors"], mask=mask, relative_field=self.current_validation_errors[f"locally_{name}_flow_gt_vectors"], surface=True)
         
     def _compute_and_plot_validation_errors(
         self, validation_data, flows_pred, flows_gt, error_radial_coordinates, error_circumferential_coordinates, 
-        error_longitudinal_coordinates, distance_validation_masks, **qwargs
-        ):
+        error_longitudinal_coordinates, distance_validation_masks, **qwargs):
         
         self.current_validation_errors = {}
-        self.current_validation_errors["complete_error"], _ = calc_epe(flows_gt, flows_pred)
-        self.complete_summary_writer.add_scalar('Validation Error',self.current_validation_errors["complete_error"], self.i_epoch)
 
-        self.current_validation_errors["LV_volume_error"], _ = calc_error_in_mask(flows_gt, flows_pred, validation_data["template_LV_seg"])
-        self.complete_summary_writer.add_scalar('Validation LV Volume Error', self.current_validation_errors["LV_volume_error"], self.i_epoch)
-        self.current_validation_errors["LV_volume_denum"], _ = calc_error_in_mask(flows_gt, torch.zeros_like(flows_pred), validation_data["template_LV_seg"])
-        self.complete_summary_writer.add_scalar('Validation LV Volume Relative Error', (self.current_validation_errors["LV_volume_error"]/self.current_validation_errors["LV_volume_denum"]) if self.current_validation_errors["LV_volume_denum"] > 0 else 0, self.i_epoch)
+        flows_diff = flows_gt - flows_pred
 
-        self.current_validation_errors["shell_volume_error"], _ = calc_error_in_mask(flows_gt, flows_pred, validation_data["template_shell_seg"])
-        self.complete_summary_writer.add_scalar('Validation Shell Volume Error', self.current_validation_errors["shell_volume_error"], self.i_epoch)
-        self.filtered_summary_writer.add_scalar('Validation Shell Volume Error', self.current_validation_errors["shell_volume_error"], self.i_epoch)
-        self.current_validation_errors["shell_volume_denum"], _ = calc_error_in_mask(flows_gt, torch.zeros_like(flows_pred), validation_data["template_shell_seg"])
-        self.complete_summary_writer.add_scalar('Validation Shell Volume Relative Error', (self.current_validation_errors["shell_volume_error"]/self.current_validation_errors["shell_volume_denum"]) if self.current_validation_errors["shell_volume_denum"] > 0 else 0, self.i_epoch)
-        self.filtered_summary_writer.add_scalar('Validation Shell Volume Relative Error', (self.current_validation_errors["shell_volume_error"]/self.current_validation_errors["shell_volume_denum"]) if self.current_validation_errors["shell_volume_denum"] > 0 else 0, self.i_epoch)
+        self.current_validation_errors["complete_error"] = self.calc_3d_field_size(flows_diff, mask=None, relative_field=None)
+        self.current_validation_errors["relative_complete_error"] = self.calc_3d_field_size(flows_diff, mask=None, relative_field=flows_gt)
+        self.current_validation_errors["LV_volume_error"] = self.calc_3d_field_size(flows_diff, mask=validation_data["template_LV_seg"], relative_field=None)
+        self.current_validation_errors["relative_LV_volume_error"] = self.calc_3d_field_size(flows_diff, mask=validation_data["template_LV_seg"], relative_field=flows_gt)
+        self.current_validation_errors["shell_volume_error"] = self.calc_3d_field_size(flows_diff, mask=validation_data["template_shell_seg"], relative_field=None)
+        self.current_validation_errors["rel_shell_volume_error"] = self.calc_3d_field_size(flows_diff, mask=validation_data["template_shell_seg"], relative_field=flows_gt)
+        self.current_validation_errors["surface_error"] = self.calc_3d_field_size(flows_diff, mask=validation_data["template_LV_seg"], relative_field=None, surface=True)
+        self.current_validation_errors["relative_surface_error"] = self.calc_3d_field_size(flows_diff, mask=validation_data["template_LV_seg"], relative_field=flows_gt, surface=True)
 
-        self.current_validation_errors["surface_error"] = calc_error_on_surface(flows_gt, flows_pred, validation_data["template_LV_seg"])
-        self.complete_summary_writer.add_scalar('Validation Surface Error', self.current_validation_errors["surface_error"], self.i_epoch)
-        self.filtered_summary_writer.add_scalar('Validation Surface Error', self.current_validation_errors["surface_error"], self.i_epoch)
-        self.current_validation_errors["surface_denum"] = calc_error_on_surface(flows_gt, torch.zeros_like(flows_pred), validation_data["template_LV_seg"])
-        self.complete_summary_writer.add_scalar('Validation Surface Relative Error', (self.current_validation_errors["surface_error"]/self.current_validation_errors["surface_denum"]) if self.current_validation_errors["surface_denum"] > 0 else 0, self.i_epoch)
-        self.filtered_summary_writer.add_scalar('Validation Surface Relative Error', (self.current_validation_errors["surface_error"]/self.current_validation_errors["surface_denum"]) if self.current_validation_errors["surface_denum"] > 0 else 0, self.i_epoch)
-
-################ TODO refactor, introduce funcs for repeating code
-        import three_d_data_manager
         voxelized_normals = validation_data["voxelized_normals"].to(flows_gt.device)
-        
-        surface_mask = torch.tensor(three_d_data_manager.extract_segmentation_envelope(torch_to_np(validation_data["template_shell_seg"])))
-        surface_mask = mask_xyz_to_13xyz(surface_mask).to(flows_gt.device)
-        surface_normalization_term = torch.numel(surface_mask[0,0]) / surface_mask[0,0].nonzero().shape[0]
+        self.current_validation_errors["locally_radial_flow_diff_vectors"], self.current_validation_errors["locally_tangential_flow_diff_vectors"] = self.calc_measurement_projected_normals_and_radial_components(flows_diff, voxelized_normals)
+        self.current_validation_errors["locally_radial_flow_gt_vectors"],   self.current_validation_errors["locally_tangential_flow_gt_vectors"]   = self.calc_measurement_projected_normals_and_radial_components(flows_gt,   voxelized_normals)
+        self.current_validation_errors["flow_pred_locally_radial"],         self.current_validation_errors["flow_pred_locally_tangential"]         = self.calc_measurement_projected_normals_and_radial_components(flows_pred, voxelized_normals)
+        self.local_surface_analysis("radial", validation_data["template_LV_seg"])
+        self.local_surface_analysis("tangential", validation_data["template_LV_seg"])
 
-        flow_diff = (flows_gt - flows_pred)
-        self.current_validation_errors["error_locally_radial"], self.current_validation_errors["error_locally_tangential"],_ ,_ = metrics_utils.calc_measurement_components_on_surface(flow_diff, surface_mask, surface_normalization_term, voxelized_normals)
-        self.complete_summary_writer.add_scalar('error_locally_radial',     (self.current_validation_errors["error_locally_radial"])     if self.current_validation_errors["error_locally_radial"]     > 0 else 0, self.i_epoch)
-        self.filtered_summary_writer.add_scalar('error_locally_radial',     (self.current_validation_errors["error_locally_radial"])     if self.current_validation_errors["error_locally_radial"]     > 0 else 0, self.i_epoch)
-        self.complete_summary_writer.add_scalar('error_locally_tangential', (self.current_validation_errors["error_locally_tangential"]) if self.current_validation_errors["error_locally_tangential"] > 0 else 0, self.i_epoch)
-        self.filtered_summary_writer.add_scalar('error_locally_tangential', (self.current_validation_errors["error_locally_tangential"]) if self.current_validation_errors["error_locally_tangential"] > 0 else 0, self.i_epoch)
+        self.volume_angular_numerical_analysis(direction_name="radial", flows_diff=flows_diff, flows_pred=flows_pred, flows_gt=flows_gt, coordinates=error_radial_coordinates, mask=validation_data["template_shell_seg"], mask_name="shell")
+        self.volume_angular_numerical_analysis("longitudinal", flows_diff, flows_pred, flows_gt, error_longitudinal_coordinates, mask=validation_data["template_shell_seg"], mask_name="shell")
+        self.volume_angular_numerical_analysis("circumferential", flows_diff, flows_pred, flows_gt, error_circumferential_coordinates, mask=validation_data["template_shell_seg"], mask_name="shell")
 
-        self.current_validation_errors["flows_pred_locally_radial"], self.current_validation_errors["flows_pred_locally_tangential"],_ ,_ = metrics_utils.calc_measurement_components_on_surface(flows_pred, surface_mask, surface_normalization_term,voxelized_normals)
-        self.complete_summary_writer.add_scalar('flows_pred_locally_radial',     (self.current_validation_errors["flows_pred_locally_radial"])     if self.current_validation_errors["flows_pred_locally_radial"]     > 0 else 0, self.i_epoch)
-        self.filtered_summary_writer.add_scalar('flows_pred_locally_radial',     (self.current_validation_errors["flows_pred_locally_radial"])     if self.current_validation_errors["flows_pred_locally_radial"]     > 0 else 0, self.i_epoch)
-        self.complete_summary_writer.add_scalar('flows_pred_locally_tangential', (self.current_validation_errors["flows_pred_locally_tangential"]) if self.current_validation_errors["flows_pred_locally_tangential"] > 0 else 0, self.i_epoch)
-        self.filtered_summary_writer.add_scalar('flows_pred_locally_tangential', (self.current_validation_errors["flows_pred_locally_tangential"]) if self.current_validation_errors["flows_pred_locally_tangential"] > 0 else 0, self.i_epoch)
+        keys_to_add_to_both_writers = ["shell_volume_error", "rel_shell_volume_error", "surface_error", "relative_surface_error",\
+            "surface_error_locally_radial", "rel_surface_error_locally_radial", "surface_error_locally_tangential", "rel_surface_error_locally_tangential",\
+                "shell_error_globally_radial", "shell_rel_error_globally_radial", "shell_error_globally_longitudinal", "shell_rel_error_globally_longitudinal",\
+                    "shell_error_globally_circumferential", "shell_rel_error_globally_circumferential"]
+        for k in keys_to_add_to_both_writers:
+            self._add_scalar_to_both_writers(k, self.current_validation_errors[k])
 
-        _, _, flows_gt_locally_radial_denum, flows_gt_locally_tangential_denum = metrics_utils.calc_measurement_components_on_surface(flows_gt, surface_mask, surface_normalization_term, voxelized_normals)
-        self.current_validation_errors["rel_error_locally_radial"], self.current_validation_errors["rel_error_locally_tangential"],_ ,_ = metrics_utils.calc_measurement_components_on_surface(flow_diff, surface_mask, surface_normalization_term, voxelized_normals, flows_gt_locally_radial_denum, flows_gt_locally_tangential_denum)
-        
-        self.complete_summary_writer.add_scalar('rel_error_locally_radial',     (self.current_validation_errors["rel_error_locally_radial"]    ) if self.current_validation_errors["error_locally_radial"]     > 0 else 0, self.i_epoch)
-        self.filtered_summary_writer.add_scalar('rel_error_locally_radial',     (self.current_validation_errors["rel_error_locally_radial"]    ) if self.current_validation_errors["error_locally_radial"]     > 0 else 0, self.i_epoch)
-        self.complete_summary_writer.add_scalar('rel_error_locally_tangential', (self.current_validation_errors["rel_error_locally_tangential"]) if self.current_validation_errors["error_locally_tangential"] > 0 else 0, self.i_epoch)
-        self.filtered_summary_writer.add_scalar('rel_error_locally_tangential', (self.current_validation_errors["rel_error_locally_tangential"]) if self.current_validation_errors["error_locally_tangential"] > 0 else 0, self.i_epoch)
+        keys_to_add_to_complete_writer = ["complete_error", "relative_complete_error", "LV_volume_error", "relative_LV_volume_error", \
+            "shell_flow_pred_globally_radial", "shell_flow_pred_globally_longitudinal", "shell_flow_pred_globally_circumferential"]
+        for k in keys_to_add_to_complete_writer:
+            self.complete_summary_writer.add_scalar(k,self.current_validation_errors[k], self.i_epoch)
 
-
-######################
-        template_seg = mask_xyz_to_13xyz(validation_data["template_shell_seg"]).to(flows_gt.device) #todo also relative error and vis of eror and vectors
-        shell_normalization_term = torch.numel(template_seg[0,0]) / template_seg[0,0].nonzero().shape[0] 
-
-        _, flow_gt_circumferential_map = calc_error_in_mask(flows_gt*error_circumferential_coordinates, torch.zeros_like(flows_pred), validation_data["template_shell_seg"])
-        error_circumferential_map = (flow_diff * error_circumferential_coordinates * template_seg).sum(1) # todo why not abs?
-        rel_error_circumferential_map = abs(error_circumferential_map/flow_gt_circumferential_map) # todo why not abs?
-        rel_error_circumferential = float(torch.nanmean(rel_error_circumferential_map).item())
-        self.current_validation_errors["shell_circumferential_error"] = error_circumferential_map.abs().mean().item() * shell_normalization_term
-        self.complete_summary_writer.add_scalar('shell_circumferential_error', self.current_validation_errors["shell_circumferential_error"], self.i_epoch)
-        self.filtered_summary_writer.add_scalar('shell_circumferential_error', self.current_validation_errors["shell_circumferential_error"], self.i_epoch)
-        self.complete_summary_writer.add_scalar('rel_shell_circumferential_error', rel_error_circumferential if rel_error_circumferential > 0 else 0, self.i_epoch)
-        self.filtered_summary_writer.add_scalar('rel_shell_circumferential_error', rel_error_circumferential if rel_error_circumferential > 0 else 0, self.i_epoch)
-
-        _, flow_gt_longitudinal_map = calc_error_in_mask(flows_gt*error_longitudinal_coordinates, torch.zeros_like(flows_pred), validation_data["template_shell_seg"])
-        error_longitudinal_map = (flow_diff * error_longitudinal_coordinates * template_seg).sum(1) # todo why not abs?
-        rel_error_longitudinal_map = abs(error_longitudinal_map/flow_gt_longitudinal_map) # todo why not abs?
-        rel_error_longitudinal = float(torch.nanmean(rel_error_longitudinal_map).item())
-        self.current_validation_errors["shell_longitudinal_error"] = error_longitudinal_map.abs().mean().item() * shell_normalization_term
-        self.complete_summary_writer.add_scalar('shell_longitudinal_error', self.current_validation_errors["shell_longitudinal_error"], self.i_epoch)
-        self.filtered_summary_writer.add_scalar('shell_longitudinal_error', self.current_validation_errors["shell_longitudinal_error"], self.i_epoch)
-        self.complete_summary_writer.add_scalar('rel_shell_longitudinal_error', rel_error_longitudinal if rel_error_longitudinal > 0 else 0, self.i_epoch)
-        self.filtered_summary_writer.add_scalar('rel_shell_longitudinal_error', rel_error_longitudinal if rel_error_longitudinal > 0 else 0, self.i_epoch)
-
-        _, flow_gt_radial_map = calc_error_in_mask(flows_gt*error_radial_coordinates, torch.zeros_like(flows_pred), validation_data["template_shell_seg"])
-        error_radial_map = (flow_diff * error_radial_coordinates * template_seg).sum(1) # todo why not abs?
-        rel_error_radial_map = abs(error_radial_map/flow_gt_radial_map) # todo why not abs?
-        rel_error_radial = float(torch.nanmean(rel_error_radial_map).item())
-        self.current_validation_errors["shell_radial_error"] = error_radial_map.abs().mean().item() * shell_normalization_term
-        self.complete_summary_writer.add_scalar('shell_radial_error', self.current_validation_errors["shell_radial_error"], self.i_epoch)
-        self.filtered_summary_writer.add_scalar('shell_radial_error', self.current_validation_errors["shell_radial_error"], self.i_epoch)
-        self.complete_summary_writer.add_scalar('rel_shell_radial_error', rel_error_radial if rel_error_radial > 0 else 0, self.i_epoch)
-        self.filtered_summary_writer.add_scalar('rel_shell_radial_error', rel_error_radial if rel_error_radial > 0 else 0, self.i_epoch)
-
-###################
-
-
+        ############ TODO future refactor:
         self.current_validation_errors["distance_calculated_errors"], self.current_validation_errors["rel_distance_calculated_errors"] = calc_error_vs_distance(flows_pred, flows_gt, distance_validation_masks)
 
         if self.i_iter % (100*self.args.record_freq) == 0: #TODO set another record_freq arg. #TODO add folder for distance_errors.
@@ -245,7 +250,7 @@ class TrainFramework(BaseTrainer):
             for distance, distance_error in zip(*region):
                 self.complete_summary_writer.add_scalar(f'Distance {region_name} Relative Validation Error/{distance}', np.array(distance_error), self.i_epoch)
                 if region_name=="in" and distance < 10:
-                    self.filtered_summary_writer.add_scalar(f'Distance {region_name} Relative Validation Error/{distance}', np.array(distance_error), self.i_epoch)
+                    self._add_scalar_to_both_writers(f'Distance {region_name} Relative Validation Error/{distance}', np.array(distance_error))
         
         rel_error_vs_dist_plot = get_error_vs_distance_plot_image(distance_validation_masks, self.current_validation_errors["rel_distance_calculated_errors"])   
         self.complete_summary_writer.add_images(f'Relative Distance Validation Error', rel_error_vs_dist_plot, self.i_epoch, dataformats='NHWC')
