@@ -11,7 +11,7 @@ import nrrd
 import scipy
 from scipy.ndimage.interpolation import zoom as zoom
 
-from flow_n_corr_utils import disp_warped_img, disp_training_fig, add_mask, disp_flow_as_arrows
+from flow_n_corr_utils import disp_warped_img, disp_training_fig, add_mask, disp_flow_as_arrows, disp_sparse_flow_as_arrows
 
 from .train_framework import TrainFramework
 from ..utils.flow_utils import flow_warp
@@ -122,14 +122,14 @@ class PullSegmentationMapTrainFramework(TrainFramework):
     def _surface_angular_analysis_single_component(self, flow_arrowed_disp, name, short_name, img1, seg, data, plot_coordinates):
         flow_arrowed_disp = flow_arrowed_disp[:,:,:2,:]
         
-        locally_component_flow_component_arrowed_disp  = disp_flow_as_arrows(img=img1, seg=seg, flow=self.current_validation_errors[f'flow_pred_locally_{name}'][0].cpu(), text=f"loc_{short_name}_flow_component",  arrow_scale_factor=300*self.args.visualization_arrow_scale_factor)
+        locally_component_flow_component_arrowed_disp  = disp_sparse_flow_as_arrows(img=img1, seg=seg, flow=self.current_validation_errors[f'flow_pred_locally_{name}'][0].cpu(), text=f"loc_{short_name}_flow_component",  arrow_scale_factor=3*self.args.visualization_arrow_scale_factor)
         flow_arrowed_disp = np.concatenate([flow_arrowed_disp,     locally_component_flow_component_arrowed_disp],  axis=2)
-        locally_component_error_component_arrowed_disp = disp_flow_as_arrows(img1, seg, self.current_validation_errors[f'locally_{name}_flow_diff_vectors'][0].cpu(),      text=f"loc_{short_name}_error_component", arrow_scale_factor=300*self.args.visualization_arrow_scale_factor)
+        locally_component_error_component_arrowed_disp = disp_sparse_flow_as_arrows(img1, seg, self.current_validation_errors[f'locally_{name}_flow_diff_vectors'][0].cpu(),      text=f"loc_{short_name}_error_component", arrow_scale_factor=3*self.args.visualization_arrow_scale_factor)
         flow_arrowed_disp = np.concatenate([flow_arrowed_disp,     locally_component_error_component_arrowed_disp], axis=2)
-        locally_component_gt_component_arrowed_disp    = disp_flow_as_arrows(img1, seg, self.current_validation_errors[f'locally_{name}_flow_gt_vectors'][0].cpu(),        text=f"loc_{short_name}_gt_component",    arrow_scale_factor=300*self.args.visualization_arrow_scale_factor)
+        locally_component_gt_component_arrowed_disp    = disp_sparse_flow_as_arrows(img1, seg, self.current_validation_errors[f'locally_{name}_flow_gt_vectors'][0].cpu(),        text=f"loc_{short_name}_gt_component",    arrow_scale_factor=3*self.args.visualization_arrow_scale_factor)
         flow_arrowed_disp = np.concatenate([flow_arrowed_disp,     locally_component_gt_component_arrowed_disp],    axis=2)
         if plot_coordinates:
-            locally_radial_base_arrowed_disp           = disp_flow_as_arrows(img1, seg, data['voxelized_normals'][0],                                                      text="loc_rad_coordinates",               arrow_scale_factor=300*self.args.visualization_arrow_scale_factor)
+            locally_radial_base_arrowed_disp           = disp_sparse_flow_as_arrows(img1, seg, data['voxelized_normals'][0],                                                      text="loc_rad_coordinates",               arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
             flow_arrowed_disp = np.concatenate([flow_arrowed_disp, locally_radial_base_arrowed_disp],               axis=2)
         return flow_arrowed_disp
     
@@ -144,13 +144,13 @@ class PullSegmentationMapTrainFramework(TrainFramework):
     def _volume_angular_analysis_single_component(self, flow_arrowed_disp, name, short_name, img1, seg, data):
         flow_arrowed_disp = flow_arrowed_disp[:,:,:2,:]
 
-        flow_component_arrowed_disp = disp_flow_as_arrows(img1, seg, self.current_validation_errors[f'globally_{name}_flows_pred_vectors'][0].cpu(),  text=f"{short_name}_flow_component",  arrow_scale_factor=300*self.args.visualization_arrow_scale_factor)
+        flow_component_arrowed_disp = disp_flow_as_arrows(img1, seg, self.current_validation_errors[f'globally_{name}_flows_pred_vectors'][0].cpu(),  text=f"{short_name}_flow_component",  arrow_scale_factor=3*self.args.visualization_arrow_scale_factor)
         flow_arrowed_disp = np.concatenate([flow_arrowed_disp, flow_component_arrowed_disp],  axis=2)
-        error_component_arrowed_disp = disp_flow_as_arrows(img1, seg, self.current_validation_errors[f'globally_{name}_flows_diff_vectors'][0].cpu(), text=f"{short_name}_error_component", arrow_scale_factor=300*self.args.visualization_arrow_scale_factor)
+        error_component_arrowed_disp = disp_flow_as_arrows(img1, seg, self.current_validation_errors[f'globally_{name}_flows_diff_vectors'][0].cpu(), text=f"{short_name}_error_component", arrow_scale_factor=3*self.args.visualization_arrow_scale_factor)
         flow_arrowed_disp = np.concatenate([flow_arrowed_disp, error_component_arrowed_disp], axis=2)
-        gt_component_arrowed_disp    = disp_flow_as_arrows(img1, seg, self.current_validation_errors[f'globally_{name}_flows_gt_vectors'][0].cpu(),   text=f"{short_name}_gt_component",    arrow_scale_factor=300*self.args.visualization_arrow_scale_factor)
+        gt_component_arrowed_disp    = disp_flow_as_arrows(img1, seg, self.current_validation_errors[f'globally_{name}_flows_gt_vectors'][0].cpu(),   text=f"{short_name}_gt_component",    arrow_scale_factor=3*self.args.visualization_arrow_scale_factor)
         flow_arrowed_disp = np.concatenate([flow_arrowed_disp,gt_component_arrowed_disp],    axis=2)
-        base_arrowed_disp            = disp_flow_as_arrows(img1, seg, data[f'error_{name}_coordinates'][0],                                            text=f"{short_name}_coordinates",    arrow_scale_factor=300*self.args.visualization_arrow_scale_factor)
+        base_arrowed_disp            = disp_flow_as_arrows(img1, seg, data[f'error_{name}_coordinates'][0],                                            text=f"{short_name}_coordinates",    arrow_scale_factor=10*self.args.visualization_arrow_scale_factor)
         flow_arrowed_disp = np.concatenate([flow_arrowed_disp, base_arrowed_disp],            axis=2)
         return flow_arrowed_disp
     
