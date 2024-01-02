@@ -70,7 +70,7 @@ def calc_epe_map(flows_gt, flows_pred):
 
 def calc_error_in_mask(flows_gt, flows_pred, template_seg):
     if template_seg.sum() == 0:
-        return 0.0
+        return 0.0, torch.zeros_like(template_seg)
     template_seg = mask_xyz_to_13xyz(template_seg).to(flows_gt.device)
     normalization_term = torch.numel(template_seg[0,0]) / template_seg[0,0].nonzero().shape[0]
     error, error_map = (calc_epe(flows_gt * template_seg, flows_pred * template_seg)) 
