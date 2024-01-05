@@ -51,6 +51,9 @@ class SegmentationPullerCardioDataset(Dataset):
         if dataset_args.voxelized_normals_path is not None:
             arr = np.nan_to_num(xyz3_to_3xyz(np.load(dataset_args.voxelized_normals_path)))
             self.sample.voxelized_normals = torch.tensor(arr[:,::scale_down_by, ::scale_down_by, ::scale_down_by])
+            req_shape = np.array(arr.shape[1:])//2
+            if tuple(self.sample.voxelized_normals.shape[1:]) != tuple(req_shape):
+                self.sample.voxelized_normals = self.sample.voxelized_normals[:,:req_shape[0],req_shape[1],:req_shape[2]]
         else:
             self.sample.voxelized_normals_path = torch.tensor([])
 
