@@ -30,6 +30,7 @@ class BaseTrainer:
         self.lowest_metric_measurement = 1E10
         self.i_epoch = self.args.after_epoch+1
         self.i_iter = 0
+        self.epochs_of_metric_not_dropping = 0
         self.model_suffix = args.model_suffix
         self.loss_modules = losses
         self.scaler = GradScaler()
@@ -136,8 +137,9 @@ class BaseTrainer:
         return break_
 
     def _update_metric_dropping(self, metric_measurement:float) -> None:
-        if metric_measurement < self.lowest_metric_measurement:
-            self.lowest_metric_measurement = metric_measurement
-            self.epochs_of_metric_not_dropping = 0
-        else:
-            self.epochs_of_metric_not_dropping += 1
+        if self.i_iter >= self.args.min_save_iter:
+            if metric_measurement < self.lowest_metric_measurement:
+                self.lowest_metric_measurement = metric_measurement
+                self.epochs_of_metric_not_dropping = 0
+            else:
+                self.epochs_of_metric_not_dropping += 1
