@@ -166,7 +166,7 @@ class TrainFramework(BaseTrainer):
         if A_shape != B_shape:
             final_shape = []
             for n, (dim_A, dim_B) in enumerate(zip(A_shape,B_shape)):
-                if dim_A<dim_b:
+                if dim_A<dim_B:
                     final_shape.append(dim_A)
                 else:
                     final_shape.append(dim_B)
