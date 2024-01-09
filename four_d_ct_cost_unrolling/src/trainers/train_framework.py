@@ -142,7 +142,7 @@ class TrainFramework(BaseTrainer):
 
             mask = self.handle_mask(mask, vec_size_map, measurement.device, surface)
 
-            num_nonzero_elements = torch.nonzero(torch.ones_like(vec_size_map)).shape[0]
+            num_nonzero_elements = mask.sum()
             if relative_field is not None:
                 relative_field_size_map = torch.sqrt(torch.sum(torch.square(relative_field), dim=1)) #TODO handle cases of rel equals zero
                 vec_size_map /= relative_field_size_map
