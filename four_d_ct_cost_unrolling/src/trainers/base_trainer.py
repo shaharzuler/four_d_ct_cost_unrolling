@@ -39,6 +39,8 @@ class BaseTrainer:
         self.args.output_root = self.output_root
         pathlib.Path(self.output_root).mkdir(parents=True, exist_ok=True)
         write_config_file(self.output_root, "training", args)
+        with open(os.path.join(self.output_root, f"after_err_norm_bug_fix.txt"), "w") as f:
+            f.write("") # TEMP!
 
     def train(self, rank:int) -> str:
         self._init_rank(rank)
