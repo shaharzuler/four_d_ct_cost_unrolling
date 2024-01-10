@@ -14,7 +14,7 @@ from ..utils.torch_utils import torch_to_np
 
 class SegmentationPullerCardioDataset(Dataset):
     def __init__(self, dataset_args:SegmentationPullerSampleArgs, sample_type:SegmentationPullerSample, normalize=True, scale_down_by:int=1)-> None:
-        self.sample = sample_type(**{
+                self.sample = sample_type(**{
             'template_image' : torch.tensor(ndimage.zoom(np.load(dataset_args.template_image_path), 1/scale_down_by)),  
             'unlabeled_image' : torch.tensor(ndimage.zoom(np.load(dataset_args.unlabeled_image_path), 1/scale_down_by)),   
             'template_LV_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.template_LV_seg_path), 1/scale_down_by, order=0)), 
@@ -22,6 +22,8 @@ class SegmentationPullerCardioDataset(Dataset):
             'template_shell_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.template_shell_seg_path), 1/scale_down_by, order=0)), 
             'unlabeled_shell_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.unlabeled_shell_seg_path), 1/scale_down_by, order=0))
             })
+        req_shape = self.sample.template_image.shape
+
 
         if dataset_args.flows_gt_path is not None:
             arr = np.nan_to_num(xyz3_to_3xyz(np.load(dataset_args.flows_gt_path)))
@@ -51,12 +53,10 @@ class SegmentationPullerCardioDataset(Dataset):
         if dataset_args.voxelized_normals_path is not None:
             arr = np.nan_to_num(xyz3_to_3xyz(np.load(dataset_args.voxelized_normals_path)))
             self.sample.voxelized_normals = torch.tensor(arr[:,::scale_down_by, ::scale_down_by, ::scale_down_by])
-            req_shape = np.array(arr.shape[1:])//2
-            if tuple(self.sample.voxelized_normals.shape[1:]) != tuple(req_shape):
+            if self.sample.voxelized_normals.shape[1:] != req_shape:
                 self.sample.voxelized_normals = self.sample.voxelized_normals[:,:req_shape[0],:req_shape[1],:req_shape[2]]
         else:
             self.sample.voxelized_normals_path = torch.tensor([])
-
 
         if normalize:
             min_ = min(self.sample.template_image.min(), self.sample.unlabeled_image.min())
@@ -68,7 +68,6 @@ class SegmentationPullerCardioDataset(Dataset):
         
         if max(dataset_args.num_pixels_validate_inside_seg, dataset_args.num_pixels_validate_outside_seg) > 0:
             self.sample_dict["distance_validation_masks"] = self._create_distance_validation_masks(dataset_args.num_pixels_validate_inside_seg, dataset_args.num_pixels_validate_outside_seg)
-
 
     def _create_distance_validation_masks(self, num_pixels_validate_inside_seg:int, num_pixels_validate_outside_seg:int):
         validation_masks = {"in": {}, "out": {}} # TODO merge in and out to single function
