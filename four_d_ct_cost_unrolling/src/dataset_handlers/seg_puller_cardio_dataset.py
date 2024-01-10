@@ -14,7 +14,7 @@ from ..utils.torch_utils import torch_to_np
 
 class SegmentationPullerCardioDataset(Dataset):
     def __init__(self, dataset_args:SegmentationPullerSampleArgs, sample_type:SegmentationPullerSample, normalize=True, scale_down_by:int=1)-> None:
-                self.sample = sample_type(**{
+        self.sample = sample_type(**{
             'template_image' : torch.tensor(ndimage.zoom(np.load(dataset_args.template_image_path), 1/scale_down_by)),  
             'unlabeled_image' : torch.tensor(ndimage.zoom(np.load(dataset_args.unlabeled_image_path), 1/scale_down_by)),   
             'template_LV_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.template_LV_seg_path), 1/scale_down_by, order=0)), 
