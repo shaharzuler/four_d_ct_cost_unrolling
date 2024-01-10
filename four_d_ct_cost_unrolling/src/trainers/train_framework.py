@@ -161,17 +161,17 @@ class TrainFramework(BaseTrainer):
 
     @staticmethod
     def torch_nd_dot(A, B, axis): # TODO utils 
-        A_shape = A.shape #TODO temp fix
-        B_shape = B.shape
-        if A_shape != B_shape:
-            final_shape = []
-            for n, (dim_A, dim_B) in enumerate(zip(A_shape,B_shape)):
-                if dim_A<dim_B:
-                    final_shape.append(dim_A)
-                else:
-                    final_shape.append(dim_B)
-            A = A[:final_shape[0], :final_shape[1], :final_shape[2], :final_shape[3]]
-            B = B[:final_shape[0], :final_shape[1], :final_shape[2], :final_shape[3]]     
+        # A_shape = A.shape #TODO temp fix
+        # B_shape = B.shape
+        # if A_shape != B_shape:
+        #     final_shape = []
+        #     for n, (dim_A, dim_B) in enumerate(zip(A_shape,B_shape)):
+        #         if dim_A<dim_B:
+        #             final_shape.append(dim_A)
+        #         else:
+        #             final_shape.append(dim_B)
+        #     A = A[:final_shape[0], :final_shape[1], :final_shape[2], :final_shape[3]]
+        #     B = B[:final_shape[0], :final_shape[1], :final_shape[2], :final_shape[3]]     
         mult = A*B
         return torch.sum(mult,axis=axis)
 
