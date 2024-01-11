@@ -137,17 +137,20 @@ class TrainFramework(BaseTrainer):
         self.complete_summary_writer.add_scalar(text, value, self.i_epoch)
         self.filtered_summary_writer.add_scalar(text, value, self.i_epoch)
 
-    def calc_3d_field_size(self, measurement, mask=None, relative_field=None, surface=False):  # TODO utils 
+    def calc_3d_field_size(self, measurement, mask=None, relative_field=None, surface=False, measurement_is_already_masked=False):  # TODO utils 
             vec_size_map = torch.sqrt(torch.sum(torch.square(measurement), dim=1))
 
             mask = self.handle_mask(mask, vec_size_map, measurement.device, surface)
 
-            num_nonzero_elements = mask.sum()
             if relative_field is not None:
                 relative_field_size_map = torch.sqrt(torch.sum(torch.square(relative_field), dim=1)) #TODO handle cases of rel equals zero
+                relative_field_size_map[relative_field_size_map < 1e-3] = 0.0
                 vec_size_map /= relative_field_size_map
+                vec_size_map = torch.nan_to_num(vec_size_map,nan=0,posinf=0)
+            num_nonzero_elements = vec_size_map.nonzero().shape[0] if measurement_is_already_masked else mask.sum() 
 
-            vec_size_map *= mask
+            if not(measurement_is_already_masked):
+                vec_size_map *= mask
             mean_measurement = float((torch.nansum(vec_size_map)/num_nonzero_elements).item()) if num_nonzero_elements != 0 else 0.
             return mean_measurement
 
@@ -180,8 +183,8 @@ class TrainFramework(BaseTrainer):
         mask[torch.where(voxelized_normals[0,0]!=0)]=1
         mask = torch.unsqueeze(mask,0)
         mask = torch.unsqueeze(mask,0)
-        locally_radial_measurement_vectors = self.proj_measurement_over_coordinates(measurement, voxelized_normals)*mask
-        locally_tangential_measurement_vectors = (measurement - locally_radial_measurement_vectors)*mask
+        locally_radial_measurement_vectors = self.proj_measurement_over_coordinates(measurement, voxelized_normals) * mask
+        locally_tangential_measurement_vectors = (measurement - locally_radial_measurement_vectors) * mask
         return locally_radial_measurement_vectors, locally_tangential_measurement_vectors
 
     def proj_measurement_over_coordinates(self, measurement, coordinates): # TODO utils 
@@ -198,8 +201,8 @@ class TrainFramework(BaseTrainer):
         self.current_validation_errors[f"{mask_name}_flow_pred_globally_{direction_name}"] = self.calc_3d_field_size(self.current_validation_errors[f"globally_{direction_name}_flows_pred_vectors"], mask=mask, relative_field=None, surface=False)
 
     def local_surface_analysis(self, name, mask):
-        self.current_validation_errors[f"surface_error_locally_{name}"] = self.calc_3d_field_size(self.current_validation_errors[f"locally_{name}_flow_diff_vectors"], mask=mask, relative_field=None, surface=True)
-        self.current_validation_errors[f"rel_surface_error_locally_{name}"] = self.calc_3d_field_size(self.current_validation_errors[f"locally_{name}_flow_diff_vectors"], mask=mask, relative_field=self.current_validation_errors[f"locally_{name}_flow_gt_vectors"], surface=True)
+        self.current_validation_errors[f"surface_error_locally_{name}"]     = self.calc_3d_field_size(self.current_validation_errors[f"locally_{name}_flow_diff_vectors"], mask=mask, relative_field=None,                                                              surface=True, measurement_is_already_masked=True)
+        self.current_validation_errors[f"rel_surface_error_locally_{name}"] = self.calc_3d_field_size(self.current_validation_errors[f"locally_{name}_flow_diff_vectors"], mask=mask, relative_field=self.current_validation_errors[f"locally_{name}_flow_gt_vectors"], surface=True, measurement_is_already_masked=True)
         
     def _compute_and_plot_validation_errors(
         self, validation_data, flows_pred, flows_gt, error_radial_coordinates, error_circumferential_coordinates, 
@@ -222,12 +225,12 @@ class TrainFramework(BaseTrainer):
         self.current_validation_errors["locally_radial_flow_diff_vectors"], self.current_validation_errors["locally_tangential_flow_diff_vectors"] = self.calc_measurement_projected_normals_and_radial_components(flows_diff, voxelized_normals)
         self.current_validation_errors["locally_radial_flow_gt_vectors"],   self.current_validation_errors["locally_tangential_flow_gt_vectors"]   = self.calc_measurement_projected_normals_and_radial_components(flows_gt,   voxelized_normals)
         self.current_validation_errors["flow_pred_locally_radial"],         self.current_validation_errors["flow_pred_locally_tangential"]         = self.calc_measurement_projected_normals_and_radial_components(flows_pred, voxelized_normals)
-        self.local_surface_analysis("radial", validation_data["template_LV_seg"])
+        self.local_surface_analysis("radial",     validation_data["template_LV_seg"])
         self.local_surface_analysis("tangential", validation_data["template_LV_seg"])
 
-        self.volume_angular_numerical_analysis(direction_name="radial", flows_diff=flows_diff, flows_pred=flows_pred, flows_gt=flows_gt, coordinates=error_radial_coordinates, mask=validation_data["template_shell_seg"], mask_name="shell")
-        self.volume_angular_numerical_analysis("longitudinal", flows_diff, flows_pred, flows_gt, error_longitudinal_coordinates, mask=validation_data["template_shell_seg"], mask_name="shell")
-        self.volume_angular_numerical_analysis("circumferential", flows_diff, flows_pred, flows_gt, error_circumferential_coordinates, mask=validation_data["template_shell_seg"], mask_name="shell")
+        self.volume_angular_numerical_analysis(direction_name="radial",          flows_diff=flows_diff, flows_pred=flows_pred, flows_gt=flows_gt, coordinates=error_radial_coordinates,          mask=validation_data["template_shell_seg"], mask_name="shell")
+        self.volume_angular_numerical_analysis(direction_name="longitudinal",    flows_diff=flows_diff, flows_pred=flows_pred, flows_gt=flows_gt, coordinates=error_longitudinal_coordinates,    mask=validation_data["template_shell_seg"], mask_name="shell")
+        self.volume_angular_numerical_analysis(direction_name="circumferential", flows_diff=flows_diff, flows_pred=flows_pred, flows_gt=flows_gt, coordinates=error_circumferential_coordinates, mask=validation_data["template_shell_seg"], mask_name="shell")
 
         keys_to_add_to_both_writers = ["shell_volume_error", "rel_shell_volume_error", "surface_error", "relative_surface_error",\
             "surface_error_locally_radial", "rel_surface_error_locally_radial", "surface_error_locally_tangential", "rel_surface_error_locally_tangential",\
