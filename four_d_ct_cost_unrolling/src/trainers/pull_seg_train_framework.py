@@ -58,6 +58,19 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         break_ = self._decide_on_early_stop()
         return break_
 
+    def run_validation(self) -> bool:
+        self.model.eval()
+        for data in self.train_loader:
+            prepared_data = self._prepare_data(data)
+
+            res_dict = self.model(prepared_data) 
+            flows, aux = self._post_process_model_output(res_dict, data["template_image"].shape)
+
+        validation_data = self._create_validation_data(0., flows, data)            
+        self._validate(validation_data=validation_data)
+        return self.current_validation_errors
+
+
     def get_metric_measurement(self, metric_name, metric_holders): # TODO can probably move to base class or at least be partially implemented there
         if metric_name in self.current_validation_errors.keys():
             return self.current_validation_errors[metric_name]
@@ -185,7 +198,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         self.complete_summary_writer.add_images(f'original_images+pred_flow', imgs_disp, self.i_epoch, dataformats='NCHW')
 
     def infer(self, rank:int, save_mask:bool=True) -> str:
-        self._init_rank(rank, update_tensorboard=False)
+        self._init_rank(rank, update_tensorboard=True)
         self.model.eval()
         for data in self.train_loader:
             prepared_data = self._prepare_data(data)
