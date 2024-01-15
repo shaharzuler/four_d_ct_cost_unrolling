@@ -2,6 +2,7 @@ import time
 from typing import Any, Dict, List, Tuple
 import json
 import os
+import math
 
 from scipy.ndimage.interpolation import zoom as zoom
 import torch
@@ -154,6 +155,23 @@ class TrainFramework(BaseTrainer):
             mean_measurement = float((torch.nansum(vec_size_map)/num_nonzero_elements).item()) if num_nonzero_elements != 0 else 0.
             return mean_measurement
 
+    def calc_angular_error(self, flows_gt, flows_pred, mask=None, surface=False):
+        pred_dot_gt = self.torch_nd_dot(flows_gt, flows_pred, axis=1)
+        pred_gt = torch.linalg.norm(flows_gt, ord=2, dim=1)
+        pred_mag = torch.linalg.norm(flows_pred, ord=2, dim=1)
+        cos_of_error_map = pred_dot_gt/(pred_gt * pred_mag) 
+        abs_angle_error_map = (torch.acos(cos_of_error_map)).abs()*(180/math.pi)
+
+        mask = self.handle_mask(mask, abs_angle_error_map, flows_pred.device, surface)
+        num_nonzero_elements = mask.sum() 
+        abs_angle_error_map *= mask
+
+        mean_measurement = float((torch.nansum(abs_angle_error_map)/num_nonzero_elements).item()) if num_nonzero_elements != 0 else 0.
+
+        return mean_measurement
+
+
+
     def handle_mask(self, mask, vec_size_map, device, surface):
         if mask is None:
             mask = torch.ones_like(vec_size_map[0])
@@ -163,18 +181,7 @@ class TrainFramework(BaseTrainer):
         return mask.to(device)
 
     @staticmethod
-    def torch_nd_dot(A, B, axis): # TODO utils 
-        # A_shape = A.shape #TODO temp fix
-        # B_shape = B.shape
-        # if A_shape != B_shape:
-        #     final_shape = []
-        #     for n, (dim_A, dim_B) in enumerate(zip(A_shape,B_shape)):
-        #         if dim_A<dim_B:
-        #             final_shape.append(dim_A)
-        #         else:
-        #             final_shape.append(dim_B)
-        #     A = A[:final_shape[0], :final_shape[1], :final_shape[2], :final_shape[3]]
-        #     B = B[:final_shape[0], :final_shape[1], :final_shape[2], :final_shape[3]]     
+    def torch_nd_dot(A, B, axis): # TODO utils    
         mult = A*B
         return torch.sum(mult,axis=axis)
 
@@ -212,14 +219,18 @@ class TrainFramework(BaseTrainer):
 
         flows_diff = flows_gt - flows_pred
 
-        self.current_validation_errors["complete_error"] = self.calc_3d_field_size(flows_diff, mask=None, relative_field=None)
-        self.current_validation_errors["relative_complete_error"] = self.calc_3d_field_size(flows_diff, mask=None, relative_field=flows_gt)
-        self.current_validation_errors["LV_volume_error"] = self.calc_3d_field_size(flows_diff, mask=validation_data["template_LV_seg"], relative_field=None)
-        self.current_validation_errors["relative_LV_volume_error"] = self.calc_3d_field_size(flows_diff, mask=validation_data["template_LV_seg"], relative_field=flows_gt)
-        self.current_validation_errors["shell_volume_error"] = self.calc_3d_field_size(flows_diff, mask=validation_data["template_shell_seg"], relative_field=None)
-        self.current_validation_errors["rel_shell_volume_error"] = self.calc_3d_field_size(flows_diff, mask=validation_data["template_shell_seg"], relative_field=flows_gt)
-        self.current_validation_errors["surface_error"] = self.calc_3d_field_size(flows_diff, mask=validation_data["template_LV_seg"], relative_field=None, surface=True)
-        self.current_validation_errors["relative_surface_error"] = self.calc_3d_field_size(flows_diff, mask=validation_data["template_LV_seg"], relative_field=flows_gt, surface=True)
+        self.current_validation_errors["complete_error"]           = self.calc_3d_field_size(flows_diff, mask=None,                                  relative_field=None,     surface=False)
+        self.current_validation_errors["relative_complete_error"]  = self.calc_3d_field_size(flows_diff, mask=None,                                  relative_field=flows_gt, surface=False)
+        self.current_validation_errors["LV_volume_error"]          = self.calc_3d_field_size(flows_diff, mask=validation_data["template_LV_seg"],    relative_field=None,     surface=False)
+        self.current_validation_errors["relative_LV_volume_error"] = self.calc_3d_field_size(flows_diff, mask=validation_data["template_LV_seg"],    relative_field=flows_gt, surface=False)
+        self.current_validation_errors["shell_volume_error"]       = self.calc_3d_field_size(flows_diff, mask=validation_data["template_shell_seg"], relative_field=None,     surface=False)
+        self.current_validation_errors["rel_shell_volume_error"]   = self.calc_3d_field_size(flows_diff, mask=validation_data["template_shell_seg"], relative_field=flows_gt, surface=False)
+        self.current_validation_errors["surface_error"]            = self.calc_3d_field_size(flows_diff, mask=validation_data["template_LV_seg"],    relative_field=None,     surface=True )
+        self.current_validation_errors["relative_surface_error"]   = self.calc_3d_field_size(flows_diff, mask=validation_data["template_LV_seg"],    relative_field=flows_gt, surface=True )
+        
+        self.current_validation_errors["LV_angular_error"]      = self.calc_angular_error(flows_gt, flows_pred, mask=validation_data["template_LV_seg"],    surface=False)
+        self.current_validation_errors["shell_angular_error"]   = self.calc_angular_error(flows_gt, flows_pred, mask=validation_data["template_shell_seg"], surface=False)
+        self.current_validation_errors["surface_angular_error"] = self.calc_angular_error(flows_gt, flows_pred, mask=validation_data["template_LV_seg"],    surface=True )
 
         voxelized_normals = validation_data["voxelized_normals"].to(flows_gt.device)
         self.current_validation_errors["locally_radial_flow_diff_vectors"], self.current_validation_errors["locally_tangential_flow_diff_vectors"] = self.calc_measurement_projected_normals_and_radial_components(flows_diff, voxelized_normals)
@@ -235,12 +246,12 @@ class TrainFramework(BaseTrainer):
         keys_to_add_to_both_writers = ["shell_volume_error", "rel_shell_volume_error", "surface_error", "relative_surface_error",\
             "surface_error_locally_radial", "rel_surface_error_locally_radial", "surface_error_locally_tangential", "rel_surface_error_locally_tangential",\
                 "shell_error_globally_radial", "shell_rel_error_globally_radial", "shell_error_globally_longitudinal", "shell_rel_error_globally_longitudinal",\
-                    "shell_error_globally_circumferential", "shell_rel_error_globally_circumferential"]
+                    "shell_error_globally_circumferential", "shell_rel_error_globally_circumferential", "shell_angular_error", "surface_angular_error"]
         for k in keys_to_add_to_both_writers:
             self._add_scalar_to_both_writers(k, self.current_validation_errors[k])
 
         keys_to_add_to_complete_writer = ["complete_error", "relative_complete_error", "LV_volume_error", "relative_LV_volume_error", \
-            "shell_flow_pred_globally_radial", "shell_flow_pred_globally_longitudinal", "shell_flow_pred_globally_circumferential"]
+            "shell_flow_pred_globally_radial", "shell_flow_pred_globally_longitudinal", "shell_flow_pred_globally_circumferential", "LV_angular_error"]
         for k in keys_to_add_to_complete_writer:
             self.complete_summary_writer.add_scalar(k,self.current_validation_errors[k], self.i_epoch)
 
