@@ -197,7 +197,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         imgs_disp = disp_training_fig(torch_to_np(data["template_image"][0]), torch_to_np(data["unlabeled_image"][0]), torch_to_np(pred_flow[0]))
         self.complete_summary_writer.add_images(f'original_images+pred_flow', imgs_disp, self.i_epoch, dataformats='NCHW')
 
-    def infer(self, rank:int, save_mask:bool=True) -> str:
+    def infer(self, rank:int, save_mask:bool=True, save_flow_tensor:bool=True) -> str:
         self._init_rank(rank, update_tensorboard=True)
         self.model.eval()
         for data in self.train_loader:
@@ -213,6 +213,11 @@ class PullSegmentationMapTrainFramework(TrainFramework):
             if save_mask:
                 self.warp_and_save_mask(data, flow_tensor, mask_name="template_LV_seg") 
                 self.warp_and_save_mask(data, flow_tensor, mask_name="template_shell_seg") 
+            if save_flow_tensor:
+                Path(os.path.join(self.output_root, self.inference_args.output_warped_seg_maps_dir)).mkdir(parents=True, exist_ok=True)
+                output_file_name = os.path.join(self.output_root, self.inference_args.output_warped_seg_maps_dir, f"flow_{self.inference_args.template_timestep}_to_{self.inference_args.unlabeled_timestep}")
+                np.save(f"{output_file_name}.npy", torch_to_np(flow_tensor))
+                print(f"saving flow to {output_file_name}.npz")
         return self.output_root
 
     def warp_and_save_mask(self, data:Dict[str,torch.Tensor], flow:torch.Tensor, mask_name:str, save_nrrd:bool=False) -> None: 
