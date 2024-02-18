@@ -56,7 +56,7 @@ class SegmentationPullerCardioDataset(Dataset):
             if self.sample.voxelized_normals.shape[1:] != req_shape:
                 self.sample.voxelized_normals = self.sample.voxelized_normals[:,:req_shape[0],:req_shape[1],:req_shape[2]]
         else:
-            self.sample.voxelized_normals_path = torch.tensor([])
+            self.sample.voxelized_normals = torch.tensor([])
 
         if normalize:
             min_ = min(self.sample.template_image.min(), self.sample.unlabeled_image.min())
