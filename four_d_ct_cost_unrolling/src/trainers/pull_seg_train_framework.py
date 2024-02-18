@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 import time
 import os
 from pathlib import Path
@@ -224,8 +225,9 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         seg_reconst = flow_warp(seg_map.unsqueeze(0).float(), flow.cpu(), mode="nearest")
         seg_reconst = torch_to_np(seg_reconst)[0,0,:,:,:].astype(bool)
 
-        Path(self.inference_args.output_warped_seg_maps_dir).mkdir(parents=True, exist_ok=True)
-        output_file_name = os.path.join(self.inference_args.output_warped_seg_maps_dir, f"seg_{self.inference_args.template_timestep}_to_{self.inference_args.unlabeled_timestep}")
-        np.savez(f"{output_file_name}.npz", seg_reconst)
+        Path(os.path.join(self.output_root, self.inference_args.output_warped_seg_maps_dir)).mkdir(parents=True, exist_ok=True)
+        output_file_name = os.path.join(self.output_root, self.inference_args.output_warped_seg_maps_dir, f"seg_{self.inference_args.template_timestep}_to_{self.inference_args.unlabeled_timestep}")
+        np.save(f"{output_file_name}.npy", seg_reconst)
+        print(f"saving mask to {output_file_name}.npy")
         if save_nrrd:
             nrrd.write(f"{output_file_name}.nrrd", seg_reconst.astype(int))
