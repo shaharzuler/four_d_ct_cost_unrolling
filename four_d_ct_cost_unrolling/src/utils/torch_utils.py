@@ -15,7 +15,7 @@ def bias_parameters(module):
     return [param for name, param in module.named_parameters() if 'bias' in name]
 
 def load_checkpoint(model_path:str) -> Tuple[int,OrderedDict]:
-    weights = torch.load(model_path, map_location={'cuda:0': 'cpu', 'cuda:5': 'cpu'}) # TODO autogenerae for 0:8
+    weights = torch.load(model_path, map_location={f'cuda:{i}': 'cpu' for i in range(8)})
     epoch = None
     if 'epoch' in weights:
         epoch = weights.pop('epoch')
