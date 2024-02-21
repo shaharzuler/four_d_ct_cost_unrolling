@@ -26,7 +26,7 @@ def _norm_grid(v_grid:torch.Tensor) -> torch.Tensor:
     v_grid_norm[:, 2, :, :] = 2.0 * v_grid[:, 2, :, :] / (H - 1) - 1.0
     return v_grid_norm.permute(0, 2, 3, 4, 1)
 
-def flow_warp(img2:torch.Tensor, flow12:torch.Tensor, pad:str='border', mode:str='bilinear') -> torch.Tensor:
+def flow_warp(img2:torch.Tensor, flow12:torch.Tensor, pad:str='border', mode:str='bilinear') -> torch.Tensor: # TODO use the warp func from flow_n_corr_utils
     assert (img2.shape[-3:] == flow12.shape[-3:])
     B, _, H, W, D = flow12.size()
     flow12 = torch.flip(flow12, [1])
