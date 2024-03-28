@@ -105,7 +105,7 @@ class PWC3D(nn.Module):
                 x2_warp = flow_warp(_x2, flow12)
 
             # correlation
-            out_corr = self.corr(_x1.to("cpu"), x2_warp.to("cpu")) # to("cpu") for avoiding CUDA OOM #TODO enable GPU calc on server3!
+            out_corr = self.corr(_x1.to("cpu"), x2_warp.to("cpu")) # to("cpu") for avoiding CUDA OOM 
             out_corr_relu = self.leakyRELU(out_corr) 
 
             # concat and estimate flow
