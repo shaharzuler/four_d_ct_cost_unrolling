@@ -44,3 +44,7 @@ def torch_to_np(tensor:torch.Tensor) -> np.ndarray:
 
 def mask_xyz_to_13xyz(mask:torch.tensor) -> torch.tensor: 
     return mask.repeat(1,3,1,1,1)
+
+def torch_nd_dot(A, B, axis):
+    mult = A*B
+    return torch.sum(mult,axis=axis)
