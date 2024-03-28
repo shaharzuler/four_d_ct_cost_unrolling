@@ -5,7 +5,7 @@ from torch.utils.data import Dataset
 import torch
 from scipy import ndimage 
 from scipy.ndimage import binary_dilation, binary_erosion
-from flow_n_corr_utils import xyz3_to_3xyz
+from flow_n_corr_utils import xyz3_to_3xyz, interpolate_from_flow_in_axis
 
 from .data_sample import SegmentationPullerSampleArgs, SegmentationPullerSample, SegmentationPullerSampleWithConstraintsArgs, SegmentationPullerSampleWithConstraints
 from ..utils.flow_utils import attach_flow_between_segs
@@ -119,28 +119,6 @@ class SegmentationPullerCardioDatasetWithConstraints(SegmentationPullerCardioDat
         k_interpolate_sparse_constraints_nn = 26 # TODO export to config
         if k_interpolate_sparse_constraints_nn > 1:
             for axis in range(two_d_constraints.shape[-1]):
-                two_d_constraints = self._interpolate_knn_axis(k_interpolate_sparse_constraints_nn, two_d_constraints.copy(), axis)
+                two_d_constraints = interpolate_from_flow_in_axis(k_interpolate_sparse_constraints_nn, two_d_constraints.copy(), axis)
         
         return two_d_constraints
-
-    def _interpolate_knn_axis(self, k_interpolate_sparse_constraints_nn:int, voxelized_flow:np.array, axis:int) -> np.array: #TODO use the one that is in flow_n_corr
-        from scipy.interpolate import griddata
-        from scipy.spatial import cKDTree
-        data_mask = np.isfinite(voxelized_flow[:,:,:,axis] )
-        data_coords = np.array(np.where(data_mask)).T
-        data_values = voxelized_flow[:,:,:,axis][data_mask]
-
-        nan_mask = np.isnan(voxelized_flow[:,:,:,axis] )
-        nan_coords = np.array(np.where(nan_mask)).T
-
-        kdtree = cKDTree(nan_coords)
-        distances, nn_indices = kdtree.query(data_coords, k=k_interpolate_sparse_constraints_nn)
-        nan_coords_for_interp = nan_coords[nn_indices].reshape(-1,3)
-
-        interpolated_values = griddata(data_coords, data_values, nan_coords_for_interp , method='linear')
-        voxelized_flow[nan_coords_for_interp[:,0], nan_coords_for_interp[:,1], nan_coords_for_interp[:,2], axis ] = interpolated_values
-        return voxelized_flow
-
-
-
-   
