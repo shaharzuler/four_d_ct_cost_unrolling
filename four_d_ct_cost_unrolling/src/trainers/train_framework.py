@@ -14,7 +14,7 @@ from flow_n_corr_utils import disp_flow_error_colors
 from .base_trainer import BaseTrainer
 from ..utils.flow_utils import flow_warp
 from ..utils.metrics_utils import AverageMeter, calc_epe, calc_error_in_mask, calc_error_on_surface, calc_error_vs_distance, get_error_vs_distance_plot_image
-from ..utils.torch_utils import mask_xyz_to_13xyz, torch_to_np
+from ..utils.torch_utils import mask_xyz_to_13xyz, torch_to_np, torch_nd_dot
 from four_d_ct_cost_unrolling.src.utils import metrics_utils
 import three_d_data_manager
 
@@ -156,7 +156,7 @@ class TrainFramework(BaseTrainer):
             return mean_measurement
 
     def calc_angular_error(self, flows_gt, flows_pred, mask=None, surface=False):
-        pred_dot_gt = self.torch_nd_dot(flows_gt, flows_pred, axis=1)
+        pred_dot_gt = torch_nd_dot(flows_gt, flows_pred, axis=1)
         pred_gt = torch.linalg.norm(flows_gt, ord=2, dim=1)
         pred_mag = torch.linalg.norm(flows_pred, ord=2, dim=1)
         cos_of_error_map = pred_dot_gt/(pred_gt * pred_mag) 
@@ -180,11 +180,6 @@ class TrainFramework(BaseTrainer):
             mask = torch.unsqueeze(mask, 0)
         return mask.to(device)
 
-    @staticmethod
-    def torch_nd_dot(A, B, axis): # TODO utils    
-        mult = A*B
-        return torch.sum(mult,axis=axis)
-
     def calc_measurement_projected_normals_and_radial_components(self, measurement, voxelized_normals): # TODO utils 
         mask = torch.zeros_like(voxelized_normals[0,0])
         mask[torch.where(voxelized_normals[0,0]!=0)]=1
@@ -195,7 +190,7 @@ class TrainFramework(BaseTrainer):
         return locally_radial_measurement_vectors, locally_tangential_measurement_vectors
 
     def proj_measurement_over_coordinates(self, measurement, coordinates): # TODO utils 
-        proj_measurement_size = self.torch_nd_dot(measurement, coordinates, 1)
+        proj_measurement_size = torch_nd_dot(measurement, coordinates, 1)
         proj_measurement_vectors = proj_measurement_size * coordinates
         return proj_measurement_vectors
 
