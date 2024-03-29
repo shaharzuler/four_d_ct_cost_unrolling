@@ -35,6 +35,7 @@ class SegmentationPullerSample:
 @dataclass
 class SegmentationPullerSampleWithConstraintsArgs(SegmentationPullerSampleArgs):
     two_d_constraints_path : str = None
+    k_interpolate_sparse_constraints_nn : int = None
     
 @dataclass
 class SegmentationPullerSampleWithConstraints(SegmentationPullerSample):

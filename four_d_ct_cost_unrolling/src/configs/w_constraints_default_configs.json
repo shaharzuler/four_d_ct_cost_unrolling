@@ -47,5 +47,6 @@
     "constraints_nn_num_conv_planes": 72,
     "scale_down_by": 1,
     "num_pixels_validate_inside_seg" : 20,
-    "num_pixels_validate_outside_seg" : 20
+    "num_pixels_validate_outside_seg" : 20,
+    "k_interpolate_sparse_constraints_nn" : 26
 }

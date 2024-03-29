@@ -1,11 +1,12 @@
 from dataclasses import asdict
+from typing import Dict
 
 import numpy as np
 from torch.utils.data import Dataset
 import torch
 from scipy import ndimage 
 from scipy.ndimage import binary_dilation, binary_erosion
-from flow_n_corr_utils import xyz3_to_3xyz, interpolate_from_flow_in_axis
+from flow_n_corr_utils import xyz3_to_3xyz, interpolate_from_flow_in_axis, min_max_norm_det_vals
 
 from .data_sample import SegmentationPullerSampleArgs, SegmentationPullerSample, SegmentationPullerSampleWithConstraintsArgs, SegmentationPullerSampleWithConstraints
 from ..utils.flow_utils import attach_flow_between_segs
@@ -14,6 +15,7 @@ from ..utils.torch_utils import torch_to_np
 
 class SegmentationPullerCardioDataset(Dataset):
     def __init__(self, dataset_args:SegmentationPullerSampleArgs, sample_type:SegmentationPullerSample, normalize=True, scale_down_by:int=1)-> None:
+        self.dataset_args = dataset_args
         self.sample = sample_type(**{
             'template_image' : torch.tensor(ndimage.zoom(np.load(dataset_args.template_image_path), 1/scale_down_by)),  
             'unlabeled_image' : torch.tensor(ndimage.zoom(np.load(dataset_args.unlabeled_image_path), 1/scale_down_by)),   
@@ -61,8 +63,8 @@ class SegmentationPullerCardioDataset(Dataset):
         if normalize:
             min_ = min(self.sample.template_image.min(), self.sample.unlabeled_image.min())
             max_ = max(self.sample.template_image.max(), self.sample.unlabeled_image.max())
-            self.sample.template_image  = self.min_max_norm(self.sample.template_image,  min_, max_)
-            self.sample.unlabeled_image = self.min_max_norm(self.sample.unlabeled_image, min_, max_)
+            self.sample.template_image  = min_max_norm_det_vals(self.sample.template_image,  min_, max_)
+            self.sample.unlabeled_image = min_max_norm_det_vals(self.sample.unlabeled_image, min_, max_)
 
         self.sample_dict = asdict(self.sample)
         
@@ -70,29 +72,21 @@ class SegmentationPullerCardioDataset(Dataset):
             self.sample_dict["distance_validation_masks"] = self._create_distance_validation_masks(dataset_args.num_pixels_validate_inside_seg, dataset_args.num_pixels_validate_outside_seg)
 
     def _create_distance_validation_masks(self, num_pixels_validate_inside_seg:int, num_pixels_validate_outside_seg:int):
-        validation_masks = {"in": {}, "out": {}} # TODO merge in and out to single function
-
-        last_dilated = (self.sample.template_LV_seg).cpu().numpy()
-        for i_out in range(1, num_pixels_validate_outside_seg+1): 
-            dilated = binary_dilation(last_dilated)
-            mask = dilated ^ last_dilated
-            validation_masks["out"][i_out] = mask
-            last_dilated = dilated
-
-        last_erosed = (self.sample.template_LV_seg).cpu().numpy()
-        for i_in in range(1, num_pixels_validate_inside_seg+1): 
-            erosed = binary_erosion(last_erosed)
-            mask = erosed ^ last_erosed
-            validation_masks["in"][i_in] = mask
-            last_erosed = erosed
+        validation_masks = {"in": {}, "out": {}} 
+        validation_masks = self._create_distance_validation_masks_for_single_direction(num_pixels_validate_inside_seg,  validation_masks, "in")
+        validation_masks = self._create_distance_validation_masks_for_single_direction(num_pixels_validate_outside_seg, validation_masks, "out")
 
         return validation_masks
-
-            
-
-    def min_max_norm(self, img:torch.Tensor, min_:float, max_:float) -> torch.Tensor: # TODO move to some utils
-        return (img-min_)/(max_-min_)
-
+    
+    def _create_distance_validation_masks_for_single_direction(self, num_pixels_validate:int, validation_masks:Dict, in_or_out:str):
+        last = (self.sample.template_LV_seg).cpu().numpy()
+        morph_func = binary_dilation if in_or_out=="out" else binary_erosion
+        for i in range(1, num_pixels_validate+1): 
+            morphed = morph_func(last)
+            mask = morphed ^ last
+            validation_masks[in_or_out][i] = mask
+            last = morphed
+        return validation_masks
 
     def __getitem__(self, i:int) -> SegmentationPullerSample:
         return self.sample_dict 
@@ -104,19 +98,19 @@ class SegmentationPullerCardioDataset(Dataset):
 class SegmentationPullerCardioDatasetWithConstraints(SegmentationPullerCardioDataset): # this lean version only supports overfit. for the full version go to https://github.com/gallif/_4DCTCostUnrolling
     def __init__(self, dataset_args:SegmentationPullerSampleWithConstraintsArgs, scale_down_by:int=1)-> None:
         super().__init__(dataset_args=dataset_args, sample_type=SegmentationPullerSampleWithConstraints, scale_down_by=scale_down_by) 
-        two_d_constraints_arr = np.load(dataset_args.two_d_constraints_path)[::scale_down_by, ::scale_down_by, ::scale_down_by, :] / scale_down_by# a np arr shape x,y,z,3 with mostly np.Nans and some floats. 
+        two_d_constraints_arr = np.load(dataset_args.two_d_constraints_path)[::scale_down_by, ::scale_down_by, ::scale_down_by, :] / scale_down_by # a np arr shape x,y,z,3 with mostly np.Nans and some floats. 
 
         two_d_constraints_raw = attach_flow_between_segs(two_d_constraints_arr.copy(), torch_to_np(self.sample.template_LV_seg).copy())
         two_d_constraints_processed = self.preprocess_2d_constraints(two_d_constraints_raw.copy()) 
         two_d_constraints_raw_with_nans_transposed = xyz3_to_3xyz(two_d_constraints_raw.copy()) 
         self.sample.two_d_constraints_with_nans = xyz3_to_3xyz(two_d_constraints_processed.copy()) 
         self.sample.two_d_constraints = np.nan_to_num(self.sample.two_d_constraints_with_nans.copy(), copy=True)
-        self.sample.two_d_constraints_mask = np.sum(~np.isnan(two_d_constraints_raw_with_nans_transposed), axis=0).astype(bool) #the mask is usef to calculate error over the surface and shpuld be of the raw surface component rather than the processed one
+        self.sample.two_d_constraints_mask = np.sum(~np.isnan(two_d_constraints_raw_with_nans_transposed), axis=0).astype(bool) # the mask is used to calculate error over the surface and shpuld be of the raw surface component rather than the processed one
         self.sample_dict.update(asdict(self.sample))
 
     def preprocess_2d_constraints(self, two_d_constraints:np.ndarray, preprocess_args:dict=None) -> np.ndarray:
         """ Here we can add more preprocessing such as blurring, thickening etc """
-        k_interpolate_sparse_constraints_nn = 26 # TODO export to config
+        k_interpolate_sparse_constraints_nn = self.dataset_args.k_interpolate_sparse_constraints_nn
         if k_interpolate_sparse_constraints_nn > 1:
             for axis in range(two_d_constraints.shape[-1]):
                 two_d_constraints = interpolate_from_flow_in_axis(k_interpolate_sparse_constraints_nn, two_d_constraints.copy(), axis)
