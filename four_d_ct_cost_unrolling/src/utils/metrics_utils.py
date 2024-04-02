@@ -138,8 +138,6 @@ def calc_iou(mask1:np.ndarray, mask2:np.ndarray) -> float:
     iou = intersection/union
     return iou
 
-
-##################
 def handle_mask(mask, vec_size_map, device, surface):
     if mask is None:
         mask = torch.ones_like(vec_size_map[0])
