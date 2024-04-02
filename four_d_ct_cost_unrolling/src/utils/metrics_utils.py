@@ -1,12 +1,13 @@
 import os
 import tempfile
+import math
 
 from matplotlib import pyplot as plt
 import torch
 import numpy as np
 
 import three_d_data_manager
-from .torch_utils import torch_to_np, mask_xyz_to_13xyz
+from .torch_utils import torch_nd_dot, torch_to_np, mask_xyz_to_13xyz
 
 
 class AverageMeter(object):
@@ -131,9 +132,66 @@ def get_error_vs_distance_plot_image(distance_validation_masks, distance_calcula
     os.remove(ftmp.name)
     return error_vs_dist_plot
 
-
 def calc_iou(mask1:np.ndarray, mask2:np.ndarray) -> float: 
     intersection = np.logical_and(mask1, mask2).sum()
     union = np.logical_or(mask1, mask2).sum()
     iou = intersection/union
     return iou
+
+
+##################
+def handle_mask(mask, vec_size_map, device, surface):
+    if mask is None:
+        mask = torch.ones_like(vec_size_map[0])
+    if surface:
+        mask = torch.tensor(three_d_data_manager.extract_segmentation_envelope(torch_to_np(mask)))
+        mask = torch.unsqueeze(mask, 0)
+    return mask.to(device)
+    
+def calc_3d_field_size(measurement, mask=None, relative_field=None, surface=False, measurement_is_already_masked=False):
+        vec_size_map = torch.sqrt(torch.sum(torch.square(measurement), dim=1))
+
+        mask = handle_mask(mask, vec_size_map, measurement.device, surface)
+
+        if relative_field is not None:
+            relative_field_size_map = torch.sqrt(torch.sum(torch.square(relative_field), dim=1)) #TODO handle cases of rel equals zero
+            relative_field_size_map[relative_field_size_map < 1e-3] = 0.0
+            vec_size_map /= relative_field_size_map
+            vec_size_map = torch.nan_to_num(vec_size_map,nan=0,posinf=0)
+        num_nonzero_elements = vec_size_map.nonzero().shape[0] if measurement_is_already_masked else mask.sum() 
+
+        if not(measurement_is_already_masked):
+            vec_size_map *= mask
+        mean_measurement = float((torch.nansum(vec_size_map)/num_nonzero_elements).item()) if num_nonzero_elements != 0 else 0.
+        return mean_measurement
+
+def calc_angular_error(flows_gt, flows_pred, mask=None, surface=False):
+    pred_dot_gt = torch_nd_dot(flows_gt, flows_pred, axis=1)
+    pred_gt = torch.linalg.norm(flows_gt, ord=2, dim=1)
+    pred_mag = torch.linalg.norm(flows_pred, ord=2, dim=1)
+    cos_of_error_map = pred_dot_gt/(pred_gt * pred_mag) 
+    abs_angle_error_map = (torch.acos(cos_of_error_map)).abs()*(180/math.pi)
+
+    mask = handle_mask(mask, abs_angle_error_map, flows_pred.device, surface)
+    num_nonzero_elements = mask.sum() 
+    abs_angle_error_map *= mask
+
+    mean_measurement = float((torch.nansum(abs_angle_error_map)/num_nonzero_elements).item()) if num_nonzero_elements != 0 else 0.
+
+    return mean_measurement
+
+def proj_measurement_over_coordinates(measurement, coordinates):
+    proj_measurement_size = torch_nd_dot(measurement, coordinates, 1)
+    proj_measurement_vectors = proj_measurement_size * coordinates
+    return proj_measurement_vectors
+
+def calc_measurement_projected_normals_and_radial_components(measurement, voxelized_normals):
+    mask = torch.zeros_like(voxelized_normals[0,0])
+    mask[torch.where(voxelized_normals[0,0]!=0)]=1
+    mask = torch.unsqueeze(mask,0)
+    mask = torch.unsqueeze(mask,0)
+    locally_radial_measurement_vectors = proj_measurement_over_coordinates(measurement, voxelized_normals) * mask
+    locally_tangential_measurement_vectors = (measurement - locally_radial_measurement_vectors) * mask
+    return locally_radial_measurement_vectors, locally_tangential_measurement_vectors
+
+

@@ -1,8 +1,6 @@
 import time
 from typing import Any, Dict, List, Tuple
-import json
 import os
-import math
 
 from scipy.ndimage.interpolation import zoom as zoom
 import torch
@@ -11,23 +9,22 @@ import numpy as np
 import pathlib
 
 from flow_n_corr_utils import disp_flow_error_colors
-# from ..utils import metrics_utils
-import three_d_data_manager
 
-from ..string_table import distance_error_folder_name
 from .base_trainer import BaseTrainer
 from ..utils.flow_utils import flow_warp
-from ..utils.metrics_utils import AverageMeter, calc_epe, calc_error_in_mask, calc_error_on_surface, calc_error_vs_distance, get_error_vs_distance_plot_image
-from ..utils.torch_utils import mask_xyz_to_13xyz, torch_to_np, torch_nd_dot
+from ..utils.metrics_utils import AverageMeter, calc_error_vs_distance, get_error_vs_distance_plot_image, calc_3d_field_size, calc_angular_error, calc_measurement_projected_normals_and_radial_components, proj_measurement_over_coordinates
+from ..utils.torch_utils import torch_to_np
 from ..utils.os_utils import write_dict_to_json
-
-
-
-
+from ..string_table import distance_error_folder_name
 
 class TrainFramework(BaseTrainer):
     def __init__(self, train_loader:Dataset, model:torch.nn.Module, loss_func:Dict[str,torch.nn.modules.Module], args:Dict):
         super(TrainFramework, self).__init__(train_loader, model, loss_func, args)
+
+    def update_to_tensorboard(self, key_meter_names:List[str], key_meters:AverageMeter) -> None:
+        if self.i_iter % self.args.record_freq == 0:
+            for v, name in zip(key_meters.val, key_meter_names):
+                self.complete_summary_writer.add_scalar('Train_' + name, v, self.i_iter)
 
     def _compute_loss_terms(self, img1:torch.Tensor, img2:torch.Tensor, vox_dim:torch.Tensor, flows:List[torch.Tensor], aux:Tuple, _:Any, __:Any) -> Tuple[torch.Tensor,Tuple[torch.Tensor]]: 
         loss, l_ph, l_sm, flow_mean = self.loss_modules['loss_module'](flows, img1, img2, aux, vox_dim)
@@ -41,18 +38,12 @@ class TrainFramework(BaseTrainer):
             
             return flow[:,:,diff_a[0]:-diff_b[0] or None, diff_a[1]:-diff_b[1] or None,diff_a[2]:-diff_b[2] or None] #TODO generalize it!
 
-
     def _post_process_model_output(self, res_dict:Dict[str,torch.Tensor], shape_:Tuple) -> Tuple[List[torch.Tensor],Tuple]:
         flows = res_dict['flows_fw'][0]
         flows[0] = self._fix_flow_dims(flows[0], shape_)
 
         aux = res_dict['flows_fw'][1]
         return flows, aux
-
-    def update_to_tensorboard(self, key_meter_names:List[str], key_meters:AverageMeter) -> None:
-        if self.i_iter % self.args.record_freq == 0:
-            for v, name in zip(key_meters.val, key_meter_names):
-                self.complete_summary_writer.add_scalar('Train_' + name, v, self.i_iter)
 
     def _optimize(self, loss:torch.Tensor) -> None:
         loss = loss.mean()
@@ -103,14 +94,13 @@ class TrainFramework(BaseTrainer):
         if self.i_iter >= self.args.min_save_iter:
             self._save_model(self.current_validation_errors[self.metric_for_early_stopping], name=self.model_suffix, save_iter_freq=self.args.save_iter_freq) 
 
-
     def _validate_self(self, validate_self_data:Dict) -> None:
         self._validate_basic(validate_self_data) 
 
     def _synt_validate(self, validation_data): 
         prepared_validation_data = self._prepare_validation_data_for_vis(validation_data)
         self._compute_and_plot_validation_errors(validation_data, **prepared_validation_data)
-        self.add_flow_error_vis_to_tensorboard(**prepared_validation_data)
+        self._add_flow_error_vis_to_tensorboard(**prepared_validation_data)
 
     def _prepare_validation_data_for_vis(self, validation_data):
         flows_pred                        = validation_data["flows_pred"]
@@ -142,71 +132,17 @@ class TrainFramework(BaseTrainer):
         self.complete_summary_writer.add_scalar(text, value, self.i_epoch)
         self.filtered_summary_writer.add_scalar(text, value, self.i_epoch)
 
-    def calc_3d_field_size(self, measurement, mask=None, relative_field=None, surface=False, measurement_is_already_masked=False):  # TODO utils 
-            vec_size_map = torch.sqrt(torch.sum(torch.square(measurement), dim=1))
+    def _volume_angular_numerical_analysis(self, direction_name, flows_diff, flows_pred, flows_gt, coordinates, mask, mask_name):
+        self.current_validation_errors[f"globally_{direction_name}_flows_diff_vectors"] = proj_measurement_over_coordinates(flows_diff, coordinates)
+        self.current_validation_errors[f"globally_{direction_name}_flows_pred_vectors"] = proj_measurement_over_coordinates(flows_pred, coordinates)
+        self.current_validation_errors[f"globally_{direction_name}_flows_gt_vectors"] = proj_measurement_over_coordinates(flows_gt, coordinates)
+        self.current_validation_errors[f"{mask_name}_error_globally_{direction_name}"] = calc_3d_field_size(self.current_validation_errors[f"globally_{direction_name}_flows_diff_vectors"], mask=mask, relative_field=None, surface=False)
+        self.current_validation_errors[f"{mask_name}_rel_error_globally_{direction_name}"] = calc_3d_field_size(self.current_validation_errors[f"globally_{direction_name}_flows_diff_vectors"], mask=mask, relative_field=self.current_validation_errors[f"globally_{direction_name}_flows_gt_vectors"], surface=False)
+        self.current_validation_errors[f"{mask_name}_flow_pred_globally_{direction_name}"] = calc_3d_field_size(self.current_validation_errors[f"globally_{direction_name}_flows_pred_vectors"], mask=mask, relative_field=None, surface=False)
 
-            mask = self.handle_mask(mask, vec_size_map, measurement.device, surface)
-
-            if relative_field is not None:
-                relative_field_size_map = torch.sqrt(torch.sum(torch.square(relative_field), dim=1)) #TODO handle cases of rel equals zero
-                relative_field_size_map[relative_field_size_map < 1e-3] = 0.0
-                vec_size_map /= relative_field_size_map
-                vec_size_map = torch.nan_to_num(vec_size_map,nan=0,posinf=0)
-            num_nonzero_elements = vec_size_map.nonzero().shape[0] if measurement_is_already_masked else mask.sum() 
-
-            if not(measurement_is_already_masked):
-                vec_size_map *= mask
-            mean_measurement = float((torch.nansum(vec_size_map)/num_nonzero_elements).item()) if num_nonzero_elements != 0 else 0.
-            return mean_measurement
-
-    def calc_angular_error(self, flows_gt, flows_pred, mask=None, surface=False): #TODO utils
-        pred_dot_gt = torch_nd_dot(flows_gt, flows_pred, axis=1)
-        pred_gt = torch.linalg.norm(flows_gt, ord=2, dim=1)
-        pred_mag = torch.linalg.norm(flows_pred, ord=2, dim=1)
-        cos_of_error_map = pred_dot_gt/(pred_gt * pred_mag) 
-        abs_angle_error_map = (torch.acos(cos_of_error_map)).abs()*(180/math.pi)
-
-        mask = self.handle_mask(mask, abs_angle_error_map, flows_pred.device, surface)
-        num_nonzero_elements = mask.sum() 
-        abs_angle_error_map *= mask
-
-        mean_measurement = float((torch.nansum(abs_angle_error_map)/num_nonzero_elements).item()) if num_nonzero_elements != 0 else 0.
-
-        return mean_measurement
-
-    def handle_mask(self, mask, vec_size_map, device, surface):
-        if mask is None:
-            mask = torch.ones_like(vec_size_map[0])
-        if surface:
-            mask = torch.tensor(three_d_data_manager.extract_segmentation_envelope(torch_to_np(mask)))
-            mask = torch.unsqueeze(mask, 0)
-        return mask.to(device)
-
-    def calc_measurement_projected_normals_and_radial_components(self, measurement, voxelized_normals): # TODO utils 
-        mask = torch.zeros_like(voxelized_normals[0,0])
-        mask[torch.where(voxelized_normals[0,0]!=0)]=1
-        mask = torch.unsqueeze(mask,0)
-        mask = torch.unsqueeze(mask,0)
-        locally_radial_measurement_vectors = self.proj_measurement_over_coordinates(measurement, voxelized_normals) * mask
-        locally_tangential_measurement_vectors = (measurement - locally_radial_measurement_vectors) * mask
-        return locally_radial_measurement_vectors, locally_tangential_measurement_vectors
-
-    def proj_measurement_over_coordinates(self, measurement, coordinates): # TODO utils 
-        proj_measurement_size = torch_nd_dot(measurement, coordinates, 1)
-        proj_measurement_vectors = proj_measurement_size * coordinates
-        return proj_measurement_vectors
-
-    def volume_angular_numerical_analysis(self, direction_name, flows_diff, flows_pred, flows_gt, coordinates, mask, mask_name):
-        self.current_validation_errors[f"globally_{direction_name}_flows_diff_vectors"] = self.proj_measurement_over_coordinates(flows_diff, coordinates)
-        self.current_validation_errors[f"globally_{direction_name}_flows_pred_vectors"] = self.proj_measurement_over_coordinates(flows_pred, coordinates)
-        self.current_validation_errors[f"globally_{direction_name}_flows_gt_vectors"] = self.proj_measurement_over_coordinates(flows_gt, coordinates)
-        self.current_validation_errors[f"{mask_name}_error_globally_{direction_name}"] = self.calc_3d_field_size(self.current_validation_errors[f"globally_{direction_name}_flows_diff_vectors"], mask=mask, relative_field=None, surface=False)
-        self.current_validation_errors[f"{mask_name}_rel_error_globally_{direction_name}"] = self.calc_3d_field_size(self.current_validation_errors[f"globally_{direction_name}_flows_diff_vectors"], mask=mask, relative_field=self.current_validation_errors[f"globally_{direction_name}_flows_gt_vectors"], surface=False)
-        self.current_validation_errors[f"{mask_name}_flow_pred_globally_{direction_name}"] = self.calc_3d_field_size(self.current_validation_errors[f"globally_{direction_name}_flows_pred_vectors"], mask=mask, relative_field=None, surface=False)
-
-    def local_surface_analysis(self, name, mask):
-        self.current_validation_errors[f"surface_error_locally_{name}"]     = self.calc_3d_field_size(self.current_validation_errors[f"locally_{name}_flow_diff_vectors"], mask=mask, relative_field=None,                                                              surface=True, measurement_is_already_masked=True)
-        self.current_validation_errors[f"rel_surface_error_locally_{name}"] = self.calc_3d_field_size(self.current_validation_errors[f"locally_{name}_flow_diff_vectors"], mask=mask, relative_field=self.current_validation_errors[f"locally_{name}_flow_gt_vectors"], surface=True, measurement_is_already_masked=True)
+    def _local_surface_analysis(self, name, mask):
+        self.current_validation_errors[f"surface_error_locally_{name}"]     = calc_3d_field_size(self.current_validation_errors[f"locally_{name}_flow_diff_vectors"], mask=mask, relative_field=None,                                                              surface=True, measurement_is_already_masked=True)
+        self.current_validation_errors[f"rel_surface_error_locally_{name}"] = calc_3d_field_size(self.current_validation_errors[f"locally_{name}_flow_diff_vectors"], mask=mask, relative_field=self.current_validation_errors[f"locally_{name}_flow_gt_vectors"], surface=True, measurement_is_already_masked=True)
         
     def _compute_and_plot_validation_errors(
         self, validation_data, flows_pred, flows_gt, error_radial_coordinates, error_circumferential_coordinates, 
@@ -216,29 +152,29 @@ class TrainFramework(BaseTrainer):
 
         flows_diff = flows_gt - flows_pred
 
-        self.current_validation_errors["complete_error"]           = self.calc_3d_field_size(flows_diff, mask=None,                                  relative_field=None,     surface=False)
-        self.current_validation_errors["relative_complete_error"]  = self.calc_3d_field_size(flows_diff, mask=None,                                  relative_field=flows_gt, surface=False)
-        self.current_validation_errors["LV_volume_error"]          = self.calc_3d_field_size(flows_diff, mask=validation_data["template_LV_seg"],    relative_field=None,     surface=False)
-        self.current_validation_errors["relative_LV_volume_error"] = self.calc_3d_field_size(flows_diff, mask=validation_data["template_LV_seg"],    relative_field=flows_gt, surface=False)
-        self.current_validation_errors["shell_volume_error"]       = self.calc_3d_field_size(flows_diff, mask=validation_data["template_shell_seg"], relative_field=None,     surface=False)
-        self.current_validation_errors["rel_shell_volume_error"]   = self.calc_3d_field_size(flows_diff, mask=validation_data["template_shell_seg"], relative_field=flows_gt, surface=False)
-        self.current_validation_errors["surface_error"]            = self.calc_3d_field_size(flows_diff, mask=validation_data["template_LV_seg"],    relative_field=None,     surface=True )
-        self.current_validation_errors["relative_surface_error"]   = self.calc_3d_field_size(flows_diff, mask=validation_data["template_LV_seg"],    relative_field=flows_gt, surface=True )
+        self.current_validation_errors["complete_error"]           = calc_3d_field_size(flows_diff, mask=None,                                  relative_field=None,     surface=False)
+        self.current_validation_errors["relative_complete_error"]  = calc_3d_field_size(flows_diff, mask=None,                                  relative_field=flows_gt, surface=False)
+        self.current_validation_errors["LV_volume_error"]          = calc_3d_field_size(flows_diff, mask=validation_data["template_LV_seg"],    relative_field=None,     surface=False)
+        self.current_validation_errors["relative_LV_volume_error"] = calc_3d_field_size(flows_diff, mask=validation_data["template_LV_seg"],    relative_field=flows_gt, surface=False)
+        self.current_validation_errors["shell_volume_error"]       = calc_3d_field_size(flows_diff, mask=validation_data["template_shell_seg"], relative_field=None,     surface=False)
+        self.current_validation_errors["rel_shell_volume_error"]   = calc_3d_field_size(flows_diff, mask=validation_data["template_shell_seg"], relative_field=flows_gt, surface=False)
+        self.current_validation_errors["surface_error"]            = calc_3d_field_size(flows_diff, mask=validation_data["template_LV_seg"],    relative_field=None,     surface=True )
+        self.current_validation_errors["relative_surface_error"]   = calc_3d_field_size(flows_diff, mask=validation_data["template_LV_seg"],    relative_field=flows_gt, surface=True )
         
-        self.current_validation_errors["LV_angular_error"]      = self.calc_angular_error(flows_gt, flows_pred, mask=validation_data["template_LV_seg"],    surface=False)
-        self.current_validation_errors["shell_angular_error"]   = self.calc_angular_error(flows_gt, flows_pred, mask=validation_data["template_shell_seg"], surface=False)
-        self.current_validation_errors["surface_angular_error"] = self.calc_angular_error(flows_gt, flows_pred, mask=validation_data["template_LV_seg"],    surface=True )
+        self.current_validation_errors["LV_angular_error"]      = calc_angular_error(flows_gt, flows_pred, mask=validation_data["template_LV_seg"],    surface=False)
+        self.current_validation_errors["shell_angular_error"]   = calc_angular_error(flows_gt, flows_pred, mask=validation_data["template_shell_seg"], surface=False)
+        self.current_validation_errors["surface_angular_error"] = calc_angular_error(flows_gt, flows_pred, mask=validation_data["template_LV_seg"],    surface=True )
 
         voxelized_normals = validation_data["voxelized_normals"].to(flows_gt.device)
-        self.current_validation_errors["locally_radial_flow_diff_vectors"], self.current_validation_errors["locally_tangential_flow_diff_vectors"] = self.calc_measurement_projected_normals_and_radial_components(flows_diff, voxelized_normals)
-        self.current_validation_errors["locally_radial_flow_gt_vectors"],   self.current_validation_errors["locally_tangential_flow_gt_vectors"]   = self.calc_measurement_projected_normals_and_radial_components(flows_gt,   voxelized_normals)
-        self.current_validation_errors["flow_pred_locally_radial"],         self.current_validation_errors["flow_pred_locally_tangential"]         = self.calc_measurement_projected_normals_and_radial_components(flows_pred, voxelized_normals)
-        self.local_surface_analysis("radial",     validation_data["template_LV_seg"])
-        self.local_surface_analysis("tangential", validation_data["template_LV_seg"])
+        self.current_validation_errors["locally_radial_flow_diff_vectors"], self.current_validation_errors["locally_tangential_flow_diff_vectors"] = calc_measurement_projected_normals_and_radial_components(flows_diff, voxelized_normals)
+        self.current_validation_errors["locally_radial_flow_gt_vectors"],   self.current_validation_errors["locally_tangential_flow_gt_vectors"]   = calc_measurement_projected_normals_and_radial_components(flows_gt,   voxelized_normals)
+        self.current_validation_errors["flow_pred_locally_radial"],         self.current_validation_errors["flow_pred_locally_tangential"]         = calc_measurement_projected_normals_and_radial_components(flows_pred, voxelized_normals)
+        self._local_surface_analysis("radial",     validation_data["template_LV_seg"])
+        self._local_surface_analysis("tangential", validation_data["template_LV_seg"])
 
-        self.volume_angular_numerical_analysis(direction_name="radial",          flows_diff=flows_diff, flows_pred=flows_pred, flows_gt=flows_gt, coordinates=error_radial_coordinates,          mask=validation_data["template_shell_seg"], mask_name="shell")
-        self.volume_angular_numerical_analysis(direction_name="longitudinal",    flows_diff=flows_diff, flows_pred=flows_pred, flows_gt=flows_gt, coordinates=error_longitudinal_coordinates,    mask=validation_data["template_shell_seg"], mask_name="shell")
-        self.volume_angular_numerical_analysis(direction_name="circumferential", flows_diff=flows_diff, flows_pred=flows_pred, flows_gt=flows_gt, coordinates=error_circumferential_coordinates, mask=validation_data["template_shell_seg"], mask_name="shell")
+        self._volume_angular_numerical_analysis(direction_name="radial",          flows_diff=flows_diff, flows_pred=flows_pred, flows_gt=flows_gt, coordinates=error_radial_coordinates,          mask=validation_data["template_shell_seg"], mask_name="shell")
+        self._volume_angular_numerical_analysis(direction_name="longitudinal",    flows_diff=flows_diff, flows_pred=flows_pred, flows_gt=flows_gt, coordinates=error_longitudinal_coordinates,    mask=validation_data["template_shell_seg"], mask_name="shell")
+        self._volume_angular_numerical_analysis(direction_name="circumferential", flows_diff=flows_diff, flows_pred=flows_pred, flows_gt=flows_gt, coordinates=error_circumferential_coordinates, mask=validation_data["template_shell_seg"], mask_name="shell")
 
         keys_to_add_to_both_writers = ["shell_volume_error", "rel_shell_volume_error", "surface_error", "relative_surface_error",\
             "surface_error_locally_radial", "rel_surface_error_locally_radial", "surface_error_locally_tangential", "rel_surface_error_locally_tangential",\
@@ -254,13 +190,16 @@ class TrainFramework(BaseTrainer):
 
         self._handle_distance_errors(distance_validation_masks, flows_pred, flows_gt)
 
+    def _add_flow_error_vis_to_tensorboard(self, flows_pred:torch.Tensor, flows_gt:torch.Tensor, two_d_constraints:torch.Tensor=None, **qwargs) -> None: 
+        flow_colors_error_disp = disp_flow_error_colors(torch_to_np(flows_pred[0]), torch_to_np(flows_gt[0]), torch_to_np(two_d_constraints[0]) if two_d_constraints is not None else None)
+        self.complete_summary_writer.add_images(f'flow_error', flow_colors_error_disp, self.i_epoch, dataformats='NCHW')
+
     def _add_dist_err_scalars(self, errors_dict, rel:bool):
         for region_name, region in errors_dict.items():
             for distance, distance_error in zip(*region):
                 self.complete_summary_writer.add_scalar(f'Distance {region_name} Validation Error/{distance}', np.array(distance_error), self.i_epoch)
                 if region_name=="in" and distance < 10 and rel:
                     self._add_scalar_to_both_writers(f'Distance {region_name} Relative Validation Error/{distance}', np.array(distance_error))
-
 
     def _handle_distance_errors_of_type(self, distance_validation_masks, rel:bool):
         err_str1 = "relative" if rel else "absolute"
@@ -281,13 +220,8 @@ class TrainFramework(BaseTrainer):
         self._handle_distance_errors_of_type(distance_validation_masks, rel=False)
         self._handle_distance_errors_of_type(distance_validation_masks, rel=True)
 
-    def add_flow_error_vis_to_tensorboard(self, flows_pred:torch.Tensor, flows_gt:torch.Tensor, two_d_constraints:torch.Tensor=None, **qwargs) -> None: 
-        flow_colors_error_disp = disp_flow_error_colors(torch_to_np(flows_pred[0]), torch_to_np(flows_gt[0]), torch_to_np(two_d_constraints[0]) if two_d_constraints is not None else None)
-        self.complete_summary_writer.add_images(f'flow_error', flow_colors_error_disp, self.i_epoch, dataformats='NCHW')
-
-
     @torch.no_grad()
-    def variance_validate(self): # NOT TESTED
+    def variance_validate(self): # From Gal. NOT TESTED
         error_median = 0
         error_mean = 0
         error_short = 0
