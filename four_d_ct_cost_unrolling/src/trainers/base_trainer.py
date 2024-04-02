@@ -2,7 +2,6 @@ import os
 import datetime
 from abc import abstractmethod
 import pathlib
-import json
 from typing import Dict
 from four_d_ct_cost_unrolling.src.utils.os_utils import get_default_checkpoints_path
 

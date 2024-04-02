@@ -8,15 +8,19 @@ from scipy.ndimage.interpolation import zoom as zoom
 import torch
 from torch.utils.data import Dataset
 import numpy as np
+import pathlib
 
 from flow_n_corr_utils import disp_flow_error_colors
+# from ..utils import metrics_utils
+import three_d_data_manager
 
+from ..string_table import distance_error_folder_name
 from .base_trainer import BaseTrainer
 from ..utils.flow_utils import flow_warp
 from ..utils.metrics_utils import AverageMeter, calc_epe, calc_error_in_mask, calc_error_on_surface, calc_error_vs_distance, get_error_vs_distance_plot_image
 from ..utils.torch_utils import mask_xyz_to_13xyz, torch_to_np, torch_nd_dot
-from four_d_ct_cost_unrolling.src.utils import metrics_utils
-import three_d_data_manager
+from ..utils.os_utils import write_dict_to_json
+
 
 
 
@@ -155,7 +159,7 @@ class TrainFramework(BaseTrainer):
             mean_measurement = float((torch.nansum(vec_size_map)/num_nonzero_elements).item()) if num_nonzero_elements != 0 else 0.
             return mean_measurement
 
-    def calc_angular_error(self, flows_gt, flows_pred, mask=None, surface=False):
+    def calc_angular_error(self, flows_gt, flows_pred, mask=None, surface=False): #TODO utils
         pred_dot_gt = torch_nd_dot(flows_gt, flows_pred, axis=1)
         pred_gt = torch.linalg.norm(flows_gt, ord=2, dim=1)
         pred_mag = torch.linalg.norm(flows_pred, ord=2, dim=1)
@@ -169,8 +173,6 @@ class TrainFramework(BaseTrainer):
         mean_measurement = float((torch.nansum(abs_angle_error_map)/num_nonzero_elements).item()) if num_nonzero_elements != 0 else 0.
 
         return mean_measurement
-
-
 
     def handle_mask(self, mask, vec_size_map, device, surface):
         if mask is None:
@@ -250,30 +252,34 @@ class TrainFramework(BaseTrainer):
         for k in keys_to_add_to_complete_writer:
             self.complete_summary_writer.add_scalar(k,self.current_validation_errors[k], self.i_epoch)
 
-        ############ TODO future refactor:
-        self.current_validation_errors["distance_calculated_errors"], self.current_validation_errors["rel_distance_calculated_errors"] = calc_error_vs_distance(flows_pred, flows_gt, distance_validation_masks)
+        self._handle_distance_errors(distance_validation_masks, flows_pred, flows_gt)
 
-        if self.i_iter % (100*self.args.record_freq) == 0: #TODO set another record_freq arg. #TODO add folder for distance_errors.
-            with open(os.path.join(self.output_root, f'absolute_distance_errors_iter_{self.i_iter}.json'), 'w') as f:
-                f.write(json.dumps(self.current_validation_errors["distance_calculated_errors"], indent=4) )
-            with open(os.path.join(self.output_root, f'relative_distance_errors_iter_{self.i_iter}.json'), 'w') as f:
-                f.write(json.dumps(self.current_validation_errors["rel_distance_calculated_errors"], indent=4) )
-
-        for region_name, region in self.current_validation_errors["distance_calculated_errors"].items():
+    def _add_dist_err_scalars(self, errors_dict, rel:bool):
+        for region_name, region in errors_dict.items():
             for distance, distance_error in zip(*region):
                 self.complete_summary_writer.add_scalar(f'Distance {region_name} Validation Error/{distance}', np.array(distance_error), self.i_epoch)
-        
-        error_vs_dist_plot = get_error_vs_distance_plot_image(distance_validation_masks, self.current_validation_errors["distance_calculated_errors"])    # TODO merge funcs
-        self.complete_summary_writer.add_images(f'Distance Validation Error', error_vs_dist_plot, self.i_epoch, dataformats='NHWC')
-        
-        for region_name, region in self.current_validation_errors["rel_distance_calculated_errors"].items():
-            for distance, distance_error in zip(*region):
-                self.complete_summary_writer.add_scalar(f'Distance {region_name} Relative Validation Error/{distance}', np.array(distance_error), self.i_epoch)
-                if region_name=="in" and distance < 10:
+                if region_name=="in" and distance < 10 and rel:
                     self._add_scalar_to_both_writers(f'Distance {region_name} Relative Validation Error/{distance}', np.array(distance_error))
+
+
+    def _handle_distance_errors_of_type(self, distance_validation_masks, rel:bool):
+        err_str1 = "relative" if rel else "absolute"
+        err_str2 = "rel_" if rel else ""
+        err_str3 = "Relative " if rel else ""
+
+        if self.i_iter % (self.args.distance_error_record_freq) == 0: 
+            write_dict_to_json(os.path.join(self.output_root, distance_error_folder_name, f'{err_str1}_distance_errors_iter_{self.i_iter}.json'), self.current_validation_errors[f"{err_str2}distance_calculated_errors"])
         
-        rel_error_vs_dist_plot = get_error_vs_distance_plot_image(distance_validation_masks, self.current_validation_errors["rel_distance_calculated_errors"])   
-        self.complete_summary_writer.add_images(f'Relative Distance Validation Error', rel_error_vs_dist_plot, self.i_epoch, dataformats='NHWC')
+        self._add_dist_err_scalars(self.current_validation_errors[f"{err_str2}distance_calculated_errors"], rel=rel) 
+        error_vs_dist_plot = get_error_vs_distance_plot_image(distance_validation_masks, self.current_validation_errors[f"{err_str2}distance_calculated_errors"])    
+        self.complete_summary_writer.add_images(f'{err_str3}Distance Validation Error', error_vs_dist_plot, self.i_epoch, dataformats='NHWC')
+
+    def _handle_distance_errors(self, distance_validation_masks, flows_pred, flows_gt):
+        self.current_validation_errors["distance_calculated_errors"], self.current_validation_errors["rel_distance_calculated_errors"] = calc_error_vs_distance(flows_pred, flows_gt, distance_validation_masks)
+        pathlib.Path(os.path.join(self.output_root, distance_error_folder_name)).mkdir(parents=True, exist_ok=True)
+        
+        self._handle_distance_errors_of_type(distance_validation_masks, rel=False)
+        self._handle_distance_errors_of_type(distance_validation_masks, rel=True)
 
     def add_flow_error_vis_to_tensorboard(self, flows_pred:torch.Tensor, flows_gt:torch.Tensor, two_d_constraints:torch.Tensor=None, **qwargs) -> None: 
         flow_colors_error_disp = disp_flow_error_colors(torch_to_np(flows_pred[0]), torch_to_np(flows_gt[0]), torch_to_np(two_d_constraints[0]) if two_d_constraints is not None else None)
@@ -387,4 +393,3 @@ class TrainFramework(BaseTrainer):
         self.writer.add_figure('Valid_Images_warped', p_dif_col, self.i_epoch)
 
         return [error_median], ["error_median"]
-

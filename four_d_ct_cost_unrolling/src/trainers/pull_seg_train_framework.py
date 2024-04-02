@@ -71,7 +71,7 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         return self.current_validation_errors
 
 
-    def get_metric_measurement(self, metric_name, metric_holders): # TODO can probably move to base class or at least be partially implemented there
+    def get_metric_measurement(self, metric_name, metric_holders): 
         if metric_name in self.current_validation_errors.keys():
             return self.current_validation_errors[metric_name]
         else:
