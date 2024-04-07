@@ -1,7 +1,7 @@
 # 4D CT Cost Unrolling for Cardiac Optical Flow
 
 ## Overview
-This repository is based on [github.com/gallif/_4DCTCostUnrolling](github.com/gallif/_4DCTCostUnrolling), designated for 3D optical flow over cardiac CT scans. It is centered around a 3D optical flow network, an extension of the ARFlow baseline, leveraging the PWC-Net architecture adapted for 3D imaging. The primary objective is to enable optimization over two timesteps of a single data sample (overfitting). 
+This repository is based on [www.github.com/gallif/_4DCTCostUnrolling](www.github.com/gallif/_4DCTCostUnrolling), designated for 3D optical flow over cardiac CT scans. It is centered around a 3D optical flow network, an extension of the ARFlow baseline, leveraging the PWC-Net architecture adapted for 3D imaging. The primary objective is to enable optimization over two timesteps of a single data sample (overfitting). 
 
 Alongside standard loss functions like L1 and SSIM, this implementation incorporates additional **constraints loss**, particularly focusing on surface constraints located on the surface of a 3D segmentation mask (soon: see details in our [paper](link)).  Furthermore, it supports an anatomical loss, promoting maximal overlap between predicted and ground truth segmentation, inspired by [DeepStrain](www.frontiersin.org/articles/10.3389/fcvm.2021.730316/).
 
@@ -78,4 +78,4 @@ Example outputs:
 ![Partial Training Output Data](readme_data/readme_data.png)
 
 ## Full Implementation
-For a comprehensive implementation of our paper, utilizing this package along with additional functionalities, please refer to [CardioSpectrum](github.com/shaharzuler/CardioSpectrum) implementation.
+For a comprehensive implementation of our paper, utilizing this package along with additional functionalities, please refer to [CardioSpectrum](www.github.com/shaharzuler/CardioSpectrum) implementation.
