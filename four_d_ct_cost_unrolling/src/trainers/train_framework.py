@@ -31,12 +31,12 @@ class TrainFramework(BaseTrainer):
         return loss, (l_ph, l_sm, flow_mean)
 
     def _fix_flow_dims(self, flow, shape_):
-         if (flow.shape)[-3:] != shape_[-3:]:
+        if (flow.shape)[-3:] != shape_[-3:]:
             diff = np.array(flow.shape[-3:])-shape_[-3:]
             diff_a = diff//2
             diff_b = diff-diff_a
-            
             return flow[:,:,diff_a[0]:-diff_b[0] or None, diff_a[1]:-diff_b[1] or None,diff_a[2]:-diff_b[2] or None] #TODO generalize it!
+        return flow
 
     def _post_process_model_output(self, res_dict:Dict[str,torch.Tensor], shape_:Tuple) -> Tuple[List[torch.Tensor],Tuple]:
         flows = res_dict['flows_fw'][0]
