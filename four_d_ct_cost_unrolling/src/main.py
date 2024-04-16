@@ -249,7 +249,9 @@ def validate_w_constraints(
         voxelized_normals_path=voxelized_normals_path,
         num_pixels_validate_inside_seg=args.num_pixels_validate_inside_seg, 
         num_pixels_validate_outside_seg=args.num_pixels_validate_outside_seg,
-        two_d_constraints_path=two_d_constraints_path)
+        two_d_constraints_path=two_d_constraints_path,
+        k_interpolate_sparse_constraints_nn=args.k_interpolate_sparse_constraints_nn)
+     )
     train_set = SegmentationPullerCardioDatasetWithConstraints(data_sample_args, scale_down_by=args.scale_down_by)
     model = PWC3Dw2dConstraints(args, train_set.sample.two_d_constraints)
     loss = get_loss(args)
