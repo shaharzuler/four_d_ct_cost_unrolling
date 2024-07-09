@@ -3,7 +3,7 @@
 ## Overview
 This repository is based on [github.com/gallif/_4DCTCostUnrolling](https://www.github.com/gallif/_4DCTCostUnrolling), designated for 3D optical flow over cardiac CT scans. It is centered around a 3D optical flow network, an extension of the ARFlow baseline, leveraging the PWC-Net architecture adapted for 3D imaging. The primary objective is to enable optimization over two timesteps of a single data sample (overfitting). 
 
-Alongside standard loss functions like L1 and SSIM, this implementation incorporates additional **constraints loss**, particularly focusing on surface constraints located on the surface of a 3D segmentation mask (soon: see details in our [paper](link)).  Furthermore, it supports an anatomical loss, promoting maximal overlap between predicted and ground truth segmentation, inspired by [DeepStrain](https://www.frontiersin.org/articles/10.3389/fcvm.2021.730316/).
+Alongside standard loss functions like L1 and SSIM, this implementation incorporates additional **constraints loss**, particularly focusing on surface constraints located on the surface of a 3D segmentation mask (see details in our [paper](https://arxiv.org/abs/2407.03794)).  Furthermore, it supports an anatomical loss, promoting maximal overlap between predicted and ground truth segmentation, inspired by [DeepStrain](https://www.frontiersin.org/articles/10.3389/fcvm.2021.730316/).
 
 ## Description
 The core functionality of this codebase revolves around optimizing two timesteps of a single sample represented as a 3D NumPy array, typically CT scans. Two masks are essential for each timestep:
