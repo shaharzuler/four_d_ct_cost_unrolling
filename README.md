@@ -13,7 +13,7 @@ The core functionality of this codebase revolves around optimizing two timesteps
 ## Installation
 
 ```bash
-pip install git+github.com/shaharzuler/four_d_ct_cost_unrolling.git
+pip install git+https://github.com/shaharzuler/four_d_ct_cost_unrolling.git
 ```
 
 ## Implemented Functions
