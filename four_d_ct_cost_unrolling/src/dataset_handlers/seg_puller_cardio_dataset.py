@@ -17,19 +17,38 @@ class SegmentationPullerCardioDataset(Dataset):
     def __init__(self, dataset_args:SegmentationPullerSampleArgs, sample_type:SegmentationPullerSample, normalize=True, scale_down_by:int=1)-> None:
         self.dataset_args = dataset_args
         self.sample = sample_type(**{
-            'template_image' : torch.tensor(ndimage.zoom(np.load(dataset_args.template_image_path), 1/scale_down_by)),  
-            'unlabeled_image' : torch.tensor(ndimage.zoom(np.load(dataset_args.unlabeled_image_path), 1/scale_down_by)),   
-            'template_LV_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.template_LV_seg_path), 1/scale_down_by, order=0)), 
-            'unlabeled_LV_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.unlabeled_LV_seg_path), 1/scale_down_by, order=0)),
-            'template_shell_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.template_shell_seg_path), 1/scale_down_by, order=0)), 
-            'unlabeled_shell_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.unlabeled_shell_seg_path), 1/scale_down_by, order=0))
+            'template_image' : torch.clamp(torch.tensor(ndimage.zoom(np.load(dataset_args.template_image_path), 1/scale_down_by)), max=2000.),  #TODO remove or configure the clamp
+            'unlabeled_image' :  torch.clamp(torch.tensor(ndimage.zoom(np.load(dataset_args.unlabeled_image_path), 1/scale_down_by)), max=2000.)#,   
+            # 'template_LV_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.template_LV_seg_path), 1/scale_down_by, order=0)), 
+            # 'unlabeled_LV_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.unlabeled_LV_seg_path), 1/scale_down_by, order=0)),
+            # 'template_shell_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.template_shell_seg_path), 1/scale_down_by, order=0)), 
+            # 'unlabeled_shell_seg' : torch.tensor(ndimage.zoom(np.load(dataset_args.unlabeled_shell_seg_path), 1/scale_down_by, order=0))
             })
         req_shape = self.sample.template_image.shape
 
+        if dataset_args.template_LV_seg_path is not None:
+            self.sample.template_LV_seg = torch.tensor(ndimage.zoom(np.load(dataset_args.template_LV_seg_path), 1/scale_down_by, order=0)), 
+            self.sample.unlabeled_LV_seg =  torch.tensor(ndimage.zoom(np.load(dataset_args.unlabeled_LV_seg_path), 1/scale_down_by, order=0)),
+            self.sample.template_shell_seg =  torch.tensor(ndimage.zoom(np.load(dataset_args.template_shell_seg_path), 1/scale_down_by, order=0)), 
+            self.sample.unlabeled_shell_seg =  torch.tensor(ndimage.zoom(np.load(dataset_args.unlabeled_shell_seg_path), 1/scale_down_by, order=0))
+        else:
+            self.sample.template_LV_seg = torch.tensor([])
+            self.sample.unlabeled_LV_seg = torch.tensor([])
+            self.sample.template_shell_seg = torch.tensor([])
+            self.sample.unlabeled_shell_seg = torch.tensor([])
 
         if dataset_args.flows_gt_path is not None:
-            arr = np.nan_to_num(xyz3_to_3xyz(np.load(dataset_args.flows_gt_path)))
-            self.sample.flows_gt = torch.tensor(ndimage.zoom(arr, (1,1/scale_down_by,1/scale_down_by,1/scale_down_by))) /scale_down_by
+            arr_w_nans = np.load(dataset_args.flows_gt_path)
+            if arr_w_nans.shape[-1] == 3:
+                arr_w_nans = xyz3_to_3xyz(arr_w_nans)
+            arr = np.nan_to_num(arr_w_nans)#xyz3_to_3xyz(np.load(dataset_args.flows_gt_path)))
+            if type(scale_down_by) != np.ndarray:
+                self.sample.flows_gt = torch.tensor(ndimage.zoom(arr, (1,1/scale_down_by,1/scale_down_by,1/scale_down_by))) /scale_down_by
+            else:
+                self.sample.flows_gt = torch.tensor(ndimage.zoom(arr, (1,1/scale_down_by[0],1/scale_down_by[1],1/scale_down_by[2])))
+                self.sample.flows_gt[0] /= scale_down_by[0]
+                self.sample.flows_gt[1] /= scale_down_by[1]
+                self.sample.flows_gt[2] /= scale_down_by[2]
         else:
             self.sample.flows_gt = torch.tensor([])
 

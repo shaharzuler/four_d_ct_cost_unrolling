@@ -47,7 +47,7 @@ def infer_backbone(
     template_image_path:str, unlabeled_image_path:str, 
     template_LV_seg_path:str, unlabeled_LV_seg_path:str, 
     template_shell_seg_path:str, unlabeled_shell_seg_path:str, 
-    flows_gt_path:str=None, args:Dict=None):
+    flows_gt_path:str=None, args:Dict=None, feature_extractor_mode=False):
 
     data_sample_args = SegmentationPullerSampleArgs(
         template_image_path, unlabeled_image_path, 
@@ -57,7 +57,7 @@ def infer_backbone(
     train_set = SegmentationPullerCardioDataset(data_sample_args, sample_type=SegmentationPullerSample, scale_down_by=args.scale_down_by)
     model = PWC3D(args)
     trainer = PullSegmentationMapTrainFramework(train_set, model, None, args)
-    output_path = trainer.infer(args.cuda_device)
+    output_path = trainer.infer(args.cuda_device, feature_extractor_mode=feature_extractor_mode)
     return output_path
     
 

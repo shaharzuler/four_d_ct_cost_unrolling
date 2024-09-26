@@ -197,12 +197,14 @@ class PullSegmentationMapTrainFramework(TrainFramework):
         imgs_disp = disp_training_fig(torch_to_np(data["template_image"][0]), torch_to_np(data["unlabeled_image"][0]), torch_to_np(pred_flow[0]))
         self.complete_summary_writer.add_images(f'original_images+pred_flow', imgs_disp, self.i_epoch, dataformats='NCHW')
 
-    def infer(self, rank:int, save_mask:bool=True, save_flow_tensor:bool=True) -> str:
+    def infer(self, rank:int, save_mask:bool=True, save_flow_tensor:bool=True, feature_extractor_mode=False) -> str:
         self._init_rank(rank, update_tensorboard=True)
         self.model.eval()
         for data in self.train_loader:
             prepared_data = self._prepare_data(data)
-            res_dict = self.model(prepared_data) 
+            res_dict = self.model(prepared_data, feature_extractor_mode) 
+            if feature_extractor_mode:
+                return res_dict, data
             flow_tensor = res_dict["flows_fw"][0][0]
             flow_tensor = self._fix_flow_dims(flow_tensor, prepared_data["img1"].shape)
             
